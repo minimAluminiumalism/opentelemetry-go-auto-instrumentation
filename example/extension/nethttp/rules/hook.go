@@ -21,11 +21,13 @@ import (
 	"net/http"
 )
 
+// src/net/http/roundtrip.go: func (t *Transport) RoundTrip(req *Request) (*Response, error)
 func httpClientEnterHook(call api.CallContext, t *http.Transport, req *http.Request) {
 	header, _ := json.Marshal(req.Header)
 	fmt.Println("request header is ", string(header))
 }
 
+// func (t *Transport) RoundTrip(req *Request) (*Response, error)
 func httpClientExitHook(call api.CallContext, res *http.Response, err error) {
 	header, _ := json.Marshal(res.Header)
 	fmt.Println("response header is ", string(header))

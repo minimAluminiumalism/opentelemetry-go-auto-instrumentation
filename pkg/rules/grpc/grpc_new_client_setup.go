@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
+// func NewClient(target string, opts ...DialOption) (conn *ClientConn, err error)
 func grpcNewClientOnEnter(call api.CallContext, target string, opts ...grpc.DialOption) {
 	h := grpc.WithStatsHandler(NewClientNewHandler())
 	var opt []grpc.DialOption
@@ -30,6 +31,7 @@ func grpcNewClientOnEnter(call api.CallContext, target string, opts ...grpc.Dial
 	call.SetParam(1, opt)
 }
 
+// func NewClient(target string, opts ...DialOption) (conn *ClientConn, err error)
 func grpcNewClientOnExit(call api.CallContext, cc *grpc.ClientConn, err error) {
 	return
 }
@@ -47,6 +49,7 @@ func NewClientNewHandler(opts ...Option) stats.Handler {
 }
 
 // TagRPC can attach some information to the given context.
+// func (h *clientStatsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context
 func (h *clientNewHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
 	nCtx := grpcClientInstrument.Start(ctx, grpcRequest{
 		methodName: info.FullMethodName,

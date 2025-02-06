@@ -2,10 +2,12 @@
 
 `opentelemetry-go-auto-instrumentation` provides some convenient ways for users to debug the instrumented program.
 
-## 1. Perform instrumentation with -debug options
+## 1. Perform instrumentation with `-debug` options
 
+Enable debug mode first, then build compile into binary.
 ```bash
-$ ./otel -debug go build
+$ ./otel set -debug
+$ ./otel go build
 ```
 
 When using the `-debug` compilation option, the tool will compile an unoptimized binary 

@@ -495,6 +495,7 @@ func nullDevice() string {
 	return "/dev/null"
 }
 
+// CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -a -ldflags="-X=github.com/alibaba/opentelemetry-go-auto-instrumentation/tool/config.ToolVersion=0.4.0_d71d610 -X=github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api/version.Tag=v0.4.0_d71d610 -s -w" -o otel ./tool/cmd
 func runBuildWithToolexec(goBuildCmd []string) (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -504,6 +505,7 @@ func runBuildWithToolexec(goBuildCmd []string) (string, error) {
 		"go",
 		"build",
 		// Add remix subcommand to tell the tool this is toolexec mode
+		// remix 子命令，每次执行 go build -toolexec=... 的时候会执行 otel remix 子命令
 		"-toolexec=" + exe + " " + CompileRemix,
 	}
 
@@ -765,7 +767,7 @@ func Preprocess() error {
 		defer util.PhaseTimer("Instrument")()
 
 		// Run go build with toolexec to start instrumentation
-		out, err := runBuildWithToolexec(dp.goBuildCmd)
+		out, err := runBuildWithToolexec(dp.goBuildCmd) // 劫持注入
 		if err != nil {
 			return fmt.Errorf("failed to run go toolexec build: %w\n%s",
 				err, out)

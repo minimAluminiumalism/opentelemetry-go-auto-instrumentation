@@ -14,6 +14,22 @@
 
 package main
 
+import _ "example/demo/otel_rules"
+
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+import _ "go.opentelemetry.io/otel"
+
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+import _ "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+import _ "go.opentelemetry.io/otel"
+
 import (
 	"example/demo/pkg"
 	"net/http"
@@ -29,7 +45,7 @@ func main() {
 		pkg.SetupHttp()
 	}()
 
-	http.ListenAndServe("0.0.0.0:6060", nil)
+	http.ListenAndServe("0.0.0.0:8080", nil)
 
 	signalCh := make(chan os.Signal, 1)
 

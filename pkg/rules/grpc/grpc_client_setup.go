@@ -22,10 +22,13 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
+// func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *ClientConn, err error)
 func grpcClientOnEnter(call api.CallContext, ctx context.Context, target string, opts ...grpc.DialOption) {
 	if !grpcEnabler.Enable() {
 		return
 	}
+	// 这里为什么要有这个逻辑？
+	// 为了触发后面的 TagRPC
 	h := grpc.WithStatsHandler(NewClientHandler())
 	var opt []grpc.DialOption
 	opt = append(opt, h)
@@ -33,6 +36,7 @@ func grpcClientOnEnter(call api.CallContext, ctx context.Context, target string,
 	call.SetParam(2, opt)
 }
 
+// func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *ClientConn, err error)
 func grpcClientOnExit(call api.CallContext, cc *grpc.ClientConn, err error) {
 	if !grpcEnabler.Enable() {
 		return

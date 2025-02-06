@@ -33,6 +33,7 @@ func checkSqlInjection(query string) error {
 	return nil
 }
 
+// func (db *DB) Query(query string, args ...any) (*Rows, error)
 func sqlQueryOnEnter(call api.CallContext, db *sql.DB, query string, args ...interface{}) {
 	if err := checkSqlInjection(query); err != nil {
 		log.Fatalf("sqlQueryOnEnter %v", err)

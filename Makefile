@@ -72,6 +72,7 @@ ifeq ($(CURRENT_OS),windows)
 	$(eval OUTPUT_BIN=$(OUTPUT_BASE).exe)
 endif
 	$(call BUILD_CMD,$(CURRENT_OS),$(CURRENT_ARCH),$(OUTPUT_BIN))
+	sudo mv $(OUTPUT_BIN) /usr/local/bin/
 
 .PHONY: all test clean
 

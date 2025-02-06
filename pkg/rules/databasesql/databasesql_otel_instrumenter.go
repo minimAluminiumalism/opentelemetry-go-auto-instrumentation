@@ -22,6 +22,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 )
 
+// Used in `pkg/inst-api-semconv/instrumenter/db/db_client_extractor.go`
+
 type databaseSqlAttrsGetter struct {
 }
 
@@ -41,7 +43,7 @@ func (d databaseSqlAttrsGetter) GetServerAddress(request databaseSqlRequest) str
 	return request.endpoint
 }
 
-func (d databaseSqlAttrsGetter) GetStatement(request databaseSqlRequest) string {
+func (d databaseSqlAttrsGetter) GetStatement(request databaseSqlRequest) string { // `db.query.text`
 	return request.sql
 }
 
@@ -56,6 +58,7 @@ func (d databaseSqlAttrsGetter) GetParameters(request databaseSqlRequest) []any 
 func BuildDatabaseSqlOtelInstrumenter() instrumenter.Instrumenter[databaseSqlRequest, any] {
 	builder := instrumenter.Builder[databaseSqlRequest, any]{}
 	getter := databaseSqlAttrsGetter{}
+	// 链式调用
 	return builder.Init().SetSpanNameExtractor(&db.DBSpanNameExtractor[databaseSqlRequest]{Getter: getter}).SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[databaseSqlRequest]{}).
 		AddAttributesExtractor(&db.DbClientAttrsExtractor[databaseSqlRequest, any, db.DbClientAttrsGetter[databaseSqlRequest]]{Base: db.DbClientCommonAttrsExtractor[databaseSqlRequest, any, db.DbClientAttrsGetter[databaseSqlRequest]]{Getter: getter}}).
 		SetInstrumentationScope(instrumentation.Scope{

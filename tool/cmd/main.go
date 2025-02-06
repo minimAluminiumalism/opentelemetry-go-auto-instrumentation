@@ -169,7 +169,7 @@ func main() {
 		err = config.PrintVersion()
 	case SubcommandSet:
 		err = config.Configure()
-	case SubcommandGo:
+	case SubcommandGo: // `go build` will trigger this
 		err = preprocess.Preprocess()
 	case SubcommandRemix:
 		err = instrument.Instrument()

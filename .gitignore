@@ -12,6 +12,9 @@ otel-*
 *.log
 .otel-build
 
+## Ignore example binaried
+**/net_http
+
 test/errors-test/errors-test
 test/errorstest/errorstest
 test/helloworld/helloworld

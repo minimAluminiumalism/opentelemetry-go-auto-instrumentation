@@ -26,6 +26,7 @@ import (
 
 var netHttpServerInstrumenter = BuildNetHttpServerOtelInstrumenter()
 
+// func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request)
 func serverOnEnter(call api.CallContext, _ interface{}, w http.ResponseWriter, r *http.Request) {
 	if netHttpFilter.FilterUrl(r.URL) {
 		return
@@ -51,6 +52,7 @@ func serverOnEnter(call api.CallContext, _ interface{}, w http.ResponseWriter, r
 	return
 }
 
+// func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request)
 func serverOnExit(call api.CallContext) {
 	data, ok := call.GetData().(map[string]interface{})
 	if !ok || data == nil || data["ctx"] == nil {

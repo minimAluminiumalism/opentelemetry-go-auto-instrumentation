@@ -25,6 +25,7 @@ import (
 
 var grpcServerInstrument = BuildGrpcServerInstrumenter()
 
+// func NewServer(opt ...ServerOption) *Server
 func grpcServerOnEnter(call api.CallContext, opts ...grpc.ServerOption) {
 	if !grpcEnabler.Enable() {
 		return
@@ -36,6 +37,7 @@ func grpcServerOnEnter(call api.CallContext, opts ...grpc.ServerOption) {
 	call.SetParam(0, opt)
 }
 
+// func NewServer(opt ...ServerOption) *Server
 func grpcServerOnExit(call api.CallContext, s *grpc.Server) {
 	if !grpcEnabler.Enable() {
 		return
@@ -56,15 +58,18 @@ type serverHandler struct {
 }
 
 // TagConn can attach some information to the given context.
+// stats/opentelemetry/server_metrics.go: func (h *serverStatsHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo)
 func (h *serverHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	return ctx
 }
 
 // HandleConn processes the Conn stats.
+// func (h *serverStatsHandler) HandleConn(context.Context, stats.ConnStats)
 func (h *serverHandler) HandleConn(ctx context.Context, info stats.ConnStats) {
 }
 
 // TagRPC can attach some information to the given context.
+// func (h *serverStatsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo)
 func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
 	var md metadata.MD
 	ctx, md = extract(ctx, h.grpcOtelConfig.Propagators)
@@ -87,6 +92,7 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 }
 
 // HandleRPC processes the RPC stats.
+// func (h *serverStatsHandler) HandleRPC(ctx context.Context, rs stats.RPCStats)
 func (h *serverHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 	isServer := true
 	h.handleRPC(ctx, rs, isServer)

@@ -78,7 +78,7 @@ func InitDB() {
 	var mysqlDSN string
 	mysqlDSN = os.Getenv("MYSQL_DSN")
 	if mysqlDSN == "" {
-		mysqlDSN = "test:test@tcp(127.0.0.1:3306)/test"
+		mysqlDSN = "root:4T$er36QtYuD#9Q@tcp(127.0.0.1:3306)/db_demo"
 	}
 	db, err = sql.Open("mysql", mysqlDSN)
 	if err != nil {

@@ -27,8 +27,11 @@ var databaseSqlInstrumenter = BuildDatabaseSqlOtelInstrumenter()
 
 var dbSqlEnabler = instrumenter.NewDefaultInstrumentEnabler()
 
+// ------ Open ------
+
+// func Open(driverName, dataSourceName string) (*DB, error)
 func beforeOpenInstrumentation(call api.CallContext, driverName, dataSourceName string) {
-	if !dbSqlEnabler.Enable() {
+	if !dbSqlEnabler.Enable() { // Always return true?
 		return
 	}
 	addr, err := parseDSN(driverName, dataSourceName)
@@ -42,6 +45,7 @@ func beforeOpenInstrumentation(call api.CallContext, driverName, dataSourceName 
 	})
 }
 
+// func Open(driverName, dataSourceName string) (*DB, error)
 func afterOpenInstrumentation(call api.CallContext, db *sql.DB, err error) {
 	if !dbSqlEnabler.Enable() {
 		return
@@ -67,6 +71,9 @@ func afterOpenInstrumentation(call api.CallContext, db *sql.DB, err error) {
 	}
 }
 
+// ------ Ping ------
+
+// func (db *DB) PingContext(ctx context.Context) error
 func beforePingContextInstrumentation(call api.CallContext, db *sql.DB, ctx context.Context) {
 	if !dbSqlEnabler.Enable() {
 		return
@@ -84,6 +91,7 @@ func afterPingContextInstrumentation(call api.CallContext, err error) {
 	instrumentEnd(call, err)
 }
 
+// func (db *DB) PingContext(ctx context.Context) error
 func beforePrepareContextInstrumentation(call api.CallContext, db *sql.DB, ctx context.Context, query string) {
 	if !dbSqlEnabler.Enable() {
 		return
@@ -135,6 +143,8 @@ func afterExecContextInstrumentation(call api.CallContext, result sql.Result, er
 	instrumentEnd(call, err)
 }
 
+// ------ Query ------
+// func (db *DB) QueryContext(ctx context.Context, query string, args ...any) 
 func beforeQueryContextInstrumentation(call api.CallContext, db *sql.DB, ctx context.Context, query string, args ...any) {
 	if !dbSqlEnabler.Enable() {
 		return
@@ -145,12 +155,15 @@ func beforeQueryContextInstrumentation(call api.CallContext, db *sql.DB, ctx con
 	instrumentStart(call, ctx, "query", query, db.Endpoint, db.DriverName, db.DSN, args...)
 }
 
+// func (db *DB) QueryContext(ctx context.Context, query string, args ...any) 
 func afterQueryContextInstrumentation(call api.CallContext, rows *sql.Rows, err error) {
 	if !dbSqlEnabler.Enable() {
 		return
 	}
 	instrumentEnd(call, err)
 }
+
+// ------ TX ------
 
 func beforeTxInstrumentation(call api.CallContext, db *sql.DB, ctx context.Context, opts *sql.TxOptions) {
 	if !dbSqlEnabler.Enable() {

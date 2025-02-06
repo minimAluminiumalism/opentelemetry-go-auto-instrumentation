@@ -26,6 +26,7 @@ var netHttpFilter = utils.DefaultUrlFilter{}
 
 var netHttpClientInstrumenter = BuildNetHttpClientOtelInstrumenter()
 
+// func (t *Transport) RoundTrip(req *Request) (*Response, error)
 func clientOnEnter(call api.CallContext, t *http.Transport, req *http.Request) {
 	if netHttpFilter.FilterUrl(req.URL) {
 		return
@@ -47,6 +48,7 @@ func clientOnEnter(call api.CallContext, t *http.Transport, req *http.Request) {
 	return
 }
 
+// func (t *Transport) RoundTrip(req *Request) (*Response, error)
 func clientOnExit(call api.CallContext, res *http.Response, err error) {
 	data, ok := call.GetData().(map[string]interface{})
 	if !ok || data == nil || data["ctx"] == nil {

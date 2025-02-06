@@ -77,6 +77,7 @@ func AssertGoBuild(args []string) {
 	}
 }
 
+// 该函数的逻辑？
 func IsCompileCommand(line string) bool {
 	check := []string{"-o", "-p", "-buildid"}
 	if util.IsWindows() {
