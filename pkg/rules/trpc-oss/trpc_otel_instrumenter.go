@@ -33,7 +33,7 @@ func (t trpcAttrsGetter) GetMethod(request trpcReq) string {
 }
 
 func (t trpcAttrsGetter) GetServerAddress(request trpcReq) string {
-	return request.msg.RemoteAddr().String()
+	return ""
 }
 
 type trpcStatusCodeExtractor[REQUEST trpcReq, RESPONSE trpcRes] struct {

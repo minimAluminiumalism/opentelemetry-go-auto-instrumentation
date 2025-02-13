@@ -10,7 +10,7 @@ import (
 var trpcClientInstrumenter = BuildTrpcClientInstrumenter()
 
 // func (c *client) Invoke(ctx context.Context, reqBody interface{}, rspBody interface{}, opt ...Option) (err error)
-func clientTrpcOnEnter(call api.CallContext, _ interface{}, ctx context.Context, reqBody, rspBody interface{}, opts interface{}) {
+func clientTrpcOnEnter(call api.CallContext, _ interface{}, ctx context.Context, reqBody interface{}, rspBody interface{}, opts interface{}) {
 	if !trpcEnabler.Enable() {
 		return
 	}
@@ -39,8 +39,12 @@ func clientTrpcOnExit(call api.CallContext, err error) {
 	ctx := data["ctx"].(context.Context)
 	request := data["request"].(trpcReq)
 	msg := data["msg"].(codec.Msg)
+	statusCode := 0
+	if msg.ServerRspErr() != nil {
+		statusCode = int(msg.ServerRspErr().Code)
+	}
 	trpcClientInstrumenter.End(ctx, request, trpcRes{
-		stausCode: int(msg.ServerRspErr().Code),
+		stausCode: statusCode,
 		msg:       msg,
 	}, err)
 }
