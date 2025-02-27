@@ -126,6 +126,8 @@ func newDepProcessor() *DepProcessor {
 }
 
 func (dp *DepProcessor) getGoModPath() string {
+	util.Assert(dp.modulePath != "", "modulePath is empty")
+	util.Assert(filepath.IsAbs(dp.modulePath), "modulePath is not absolute")
 	return dp.modulePath
 }
 
@@ -135,6 +137,10 @@ func (dp *DepProcessor) getGoModDir() string {
 
 func (dp *DepProcessor) getGoModName() string {
 	return dp.moduleName
+}
+
+func (dp *DepProcessor) generatedOf(dir string) string {
+	return filepath.Join(dp.getGoModDir(), dir)
 }
 
 // runCmdOutput runs the command and returns its standard output. dir specifies
@@ -252,10 +258,23 @@ func (dp *DepProcessor) init() error {
 	util.Log("Found sources %v", dp.sources)
 
 	// Check if the build mode
-	// FIXME: vendor directory name can be anything, but we assume it's "vendor"
-	// for now
-	vendor := filepath.Join(dp.getGoModDir(), VendorDir)
-	dp.vendorBuild = util.PathExists(vendor)
+	ignoreVendor := false
+	for _, arg := range dp.goBuildCmd {
+		// -mod=mod and -mod=readonly tells the go command to ignore the vendor
+		// directory. We should not use the vendor directory in this case.
+		if strings.HasPrefix(arg, "-mod=mod") ||
+			strings.HasPrefix(arg, "-mod=readonly") {
+			dp.vendorBuild = false
+			ignoreVendor = true
+			break
+		}
+	}
+	if !ignoreVendor {
+		// FIXME: vendor directory name can be anything, but we assume it's "vendor"
+		// for now
+		vendor := filepath.Join(dp.getGoModDir(), VendorDir)
+		dp.vendorBuild = util.PathExists(vendor)
+	}
 	util.Log("Vendor build: %v", dp.vendorBuild)
 
 	// Register signal handler to catch up SIGINT/SIGTERM interrupt signals and
@@ -284,10 +303,10 @@ func (dp *DepProcessor) postProcess() {
 	}
 
 	// rm -rf otel_rules
-	_ = os.RemoveAll(OtelRules)
+	_ = os.RemoveAll(dp.generatedOf(OtelRules))
 
 	// rm -rf otel_pkgdep
-	_ = os.RemoveAll(OtelPkgDep)
+	_ = os.RemoveAll(dp.generatedOf(OtelPkgDep))
 
 	// Restore everything we have modified during instrumentation
 	_ = dp.restoreBackupFiles()
@@ -623,11 +642,11 @@ func (dp *DepProcessor) preclean() {
 		}
 	}
 	// Clean otel_rules/otel_pkgdep directory
-	if util.PathExists(OtelRules) {
-		_ = os.RemoveAll(OtelRules)
+	if util.PathExists(dp.generatedOf(OtelRules)) {
+		_ = os.RemoveAll(dp.generatedOf(OtelRules))
 	}
-	if util.PathExists(OtelPkgDep) {
-		_ = os.RemoveAll(OtelPkgDep)
+	if util.PathExists(dp.generatedOf(OtelPkgDep)) {
+		_ = os.RemoveAll(dp.generatedOf(OtelPkgDep))
 	}
 }
 
@@ -841,7 +860,7 @@ func (dp *DepProcessor) saveDebugFiles() {
 	dir := filepath.Join(util.GetTempBuildDir(), OtelRules)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err == nil {
-		util.CopyDir(OtelRules, dir)
+		util.CopyDir(dp.generatedOf(OtelRules), dir)
 	}
 	dir = filepath.Join(util.GetTempBuildDir(), OtelUser)
 	err = os.MkdirAll(dir, os.ModePerm)
