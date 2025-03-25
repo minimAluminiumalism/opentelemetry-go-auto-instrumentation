@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	nurl "net/url"
+
+	"github.com/cespare/xxhash/v2"
 	"github.com/xwb1989/sqlparser"
 )
 
@@ -67,6 +69,23 @@ func parseMySQL(dsn string) (addr string, err error) {
 }
 
 func collectionExtractor(query string) string {
+	queryHash := xxhash.Sum64String(query)
+
+	if cachedResult, found := sqlCache.Load(queryHash); found {
+		return cachedResult.(string)
+	}
+
+	result := parseQueryForCollection(query)
+
+	if result != "" {
+		sqlCache.Store(queryHash, result)
+	}
+
+	return result
+}
+
+
+func parseQueryForCollection(query string) string {
 	stmt, err := sqlparser.Parse(query)
 	if err != nil {
 		return ""

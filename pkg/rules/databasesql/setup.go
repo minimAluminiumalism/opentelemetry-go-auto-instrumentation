@@ -17,15 +17,21 @@ package databasesql
 import (
 	"context"
 	"database/sql"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/api"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api/instrumenter"
 	"log"
 	"strings"
+	"sync"
+
+	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/api"
+	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api/instrumenter"
 )
 
 var databaseSqlInstrumenter = BuildDatabaseSqlOtelInstrumenter()
 
 var dbSqlEnabler = instrumenter.NewDefaultInstrumentEnabler()
+
+var (
+	sqlCache sync.Map
+)
 
 func beforeOpenInstrumentation(call api.CallContext, driverName, dataSourceName string) {
 	if !dbSqlEnabler.Enable() {
