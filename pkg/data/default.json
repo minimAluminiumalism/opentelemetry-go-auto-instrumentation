@@ -919,6 +919,15 @@
     "Function": "PublishWithDeferredConfirm",
     "OnEnter": "publishWithDeferredConfirmOnEnter",
     "OnExit":"publishWithDeferredConfirmOnExit",
-      "Path": "github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/rules/amqp091go"
+    "Path": "github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/rules/amqp091go"
+  },
+  {
+    "Version": "[0.4.0,)",
+    "ImportPath": "github.com/segmentio/kafka-go",
+    "ReceiverType": "*Writer",
+    "Function": "WriteMessages",
+    "OnEnter": "writeMsgOnEnter",
+    "OnExit":"writeMsgOnExit",
+    "Path": "github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/rules/kafkago"
   }
 ]
