@@ -72,6 +72,10 @@ func (m mongoAttrsGetter) GetParameters(request testRequest) []any {
 	return nil
 }
 
+func (m mongoAttrsGetter) GetCollection(request testRequest) string {
+	return request.Target
+}
+
 func TestGetSpanKey(t *testing.T) {
 	dbExtractor := &DbClientAttrsExtractor[testRequest, any, mongoAttrsGetter]{}
 	if dbExtractor.GetSpanKey() != utils.DB_CLIENT_KEY {
