@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/test/verifier"
+	"github.com/alibaba/loongsuite-go-agent/test/verifier"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
@@ -29,7 +29,6 @@ func main() {
 	time.Sleep(3 * time.Second)
 	// use a http client to request to the server
 	sendReq(context.Background())
-	time.Sleep(3 * time.Second)
 	verifier.WaitAndAssertMetrics(map[string]func(metricdata.ResourceMetrics){
 		"rpc.server.duration": func(mrs metricdata.ResourceMetrics) {
 			if len(mrs.ScopeMetrics) <= 0 {

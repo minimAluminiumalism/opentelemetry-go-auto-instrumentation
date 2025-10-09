@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/test/verifier"
+	"github.com/alibaba/loongsuite-go-agent/test/verifier"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -47,7 +47,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(3 * time.Second)
 	verifier.WaitAndAssertMetrics(map[string]func(metricdata.ResourceMetrics){
 		"http.server.request.duration": func(mrs metricdata.ResourceMetrics) {
 			if len(mrs.ScopeMetrics) <= 0 {

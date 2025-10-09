@@ -21,7 +21,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"testing"
 
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api/utils"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -54,7 +54,9 @@ func TestSpanKeySuppressor(t *testing.T) {
 	instrumenter := builder.BuildInstrumenter()
 	ctx := context.Background()
 	traceProvider := sdktrace.NewTracerProvider()
+	originalTP := otel.GetTracerProvider()
 	otel.SetTracerProvider(traceProvider)
+	defer otel.SetTracerProvider(originalTP)
 	newCtx := instrumenter.Start(ctx, testRequest{})
 	span := trace.SpanFromContext(newCtx)
 	newCtx = s.StoreInContext(newCtx, trace.SpanKindClient, span)
@@ -80,7 +82,9 @@ func TestSpanKeySuppressorNotMatch(t *testing.T) {
 	instrumenter := builder.BuildInstrumenter()
 	ctx := context.Background()
 	traceProvider := sdktrace.NewTracerProvider()
+	originalTP := otel.GetTracerProvider()
 	otel.SetTracerProvider(traceProvider)
+	defer otel.SetTracerProvider(originalTP)
 	newCtx := instrumenter.Start(ctx, testRequest{})
 	span := trace.SpanFromContext(newCtx)
 	newCtx = s.StoreInContext(newCtx, trace.SpanKindClient, span)
@@ -103,7 +107,9 @@ func TestSpanKindSuppressor(t *testing.T) {
 	instrumenter := builder.BuildInstrumenter()
 	ctx := context.Background()
 	traceProvider := sdktrace.NewTracerProvider()
+	originalTP := otel.GetTracerProvider()
 	otel.SetTracerProvider(traceProvider)
+	defer otel.SetTracerProvider(originalTP)
 	newCtx := instrumenter.Start(ctx, testRequest{})
 	span := trace.SpanFromContext(newCtx)
 	newCtx = s.StoreInContext(newCtx, trace.SpanKindClient, span)

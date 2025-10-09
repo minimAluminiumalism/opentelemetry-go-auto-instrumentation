@@ -18,10 +18,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/tool/config"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/tool/errc"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/tool/resource"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/tool/util"
+	"github.com/alibaba/loongsuite-go-agent/tool/ast"
+	"github.com/alibaba/loongsuite-go-agent/tool/config"
+	"github.com/alibaba/loongsuite-go-agent/tool/ex"
+	"github.com/alibaba/loongsuite-go-agent/tool/rules"
+	"github.com/alibaba/loongsuite-go-agent/tool/util"
 	"github.com/dave/dst"
 )
 
@@ -94,22 +95,15 @@ import (
 
 // TJump describes a trampoline-jump-if optimization candidate
 type TJump struct {
-	target *dst.FuncDecl          // Target function we are hooking on
-	ifStmt *dst.IfStmt            // Trampoline-jump-if statement
-	rule   *resource.InstFuncRule // Rule associated with the trampoline-jump-if
-}
-
-func newDecoratedEmptyStmt() *dst.EmptyStmt {
-	emptyStmt := util.EmptyStmt()
-	emptyStmt.Decorations().Start.Append(TrampolineNoNewlinePlaceholder)
-	emptyStmt.Decorations().End.Append(TrampolineSemicolonPlaceholder)
-	return emptyStmt
+	target *dst.FuncDecl       // Target function we are hooking on
+	ifStmt *dst.IfStmt         // Trampoline-jump-if statement
+	rule   *rules.InstFuncRule // Rule associated with the trampoline-jump-if
 }
 
 func mustTJump(ifStmt *dst.IfStmt) {
 	util.Assert(len(ifStmt.Decs.If) == 1, "must be a trampoline-jump-if")
 	desc := ifStmt.Decs.If[0]
-	util.Assert(desc == TrampolineJumpIfDesc, "must be a trampoline-jump-if")
+	util.Assert(desc == TJumpLabel, "must be a trampoline-jump-if")
 }
 
 func (rp *RuleProcessor) removeOnExitTrampolineCall(tjump *TJump) error {
@@ -117,9 +111,8 @@ func (rp *RuleProcessor) removeOnExitTrampolineCall(tjump *TJump) error {
 	elseBlock := ifStmt.Else.(*dst.BlockStmt)
 	for i, stmt := range elseBlock.List {
 		if _, ok := stmt.(*dst.DeferStmt); ok {
-			// Replace defer statement with an decorated empty statement to make
-			// trampoline-jump-if inlining work
-			elseBlock.List[i] = newDecoratedEmptyStmt()
+			// Replace defer statement with an empty statement
+			elseBlock.List[i] = ast.EmptyStmt()
 			if config.GetConf().Verbose {
 				util.Log("Optimize tjump branch in %s",
 					tjump.target.Name.Name)
@@ -137,20 +130,37 @@ func (rp *RuleProcessor) removeOnExitTrampolineCall(tjump *TJump) error {
 
 func replenishCallContextLiteral(tjump *TJump, expr dst.Expr) {
 	rawFunc := tjump.target
+	// Replenish call context literal with addresses of all arguments
 	names := make([]dst.Expr, 0)
 	for _, name := range getNames(rawFunc.Type.Params) {
-		names = append(names, util.AddressOf(util.Ident(name)))
+		names = append(names, ast.AddressOf(ast.Ident(name)))
 	}
 	elems := expr.(*dst.UnaryExpr).X.(*dst.CompositeLit).Elts
 	paramLiteral := elems[0].(*dst.KeyValueExpr).Value.(*dst.CompositeLit)
 	paramLiteral.Elts = names
+	// Replenish return values literal with addresses of all return values
+	if rawFunc.Type.Results != nil {
+		rets := make([]dst.Expr, 0)
+		for _, name := range getNames(rawFunc.Type.Results) {
+			rets = append(rets, ast.AddressOf(ast.Ident(name)))
+		}
+		elems = expr.(*dst.UnaryExpr).X.(*dst.CompositeLit).Elts
+		returnLiteral := elems[1].(*dst.KeyValueExpr).Value.(*dst.CompositeLit)
+		returnLiteral.Elts = rets
+	}
 }
 
+// newCallContextImpl constructs a new CallContextImpl structure literal and
+// replenishes its Params && ReturnValues field with addresses of all arguments.
+// The CallContextImpl structure is used to pass arguments to the exit trampoline
 func (rp *RuleProcessor) newCallContextImpl(tjump *TJump) (dst.Expr, error) {
+	// TODO: This generated structure construction can also be marked via line
+	// directive
 	// One line please, otherwise debugging line number will be a nightmare
 	tmpl := fmt.Sprintf("&CallContextImpl%s{Params:[]interface{}{},ReturnVals:[]interface{}{}}",
-		rp.rule2Suffix[tjump.rule])
-	astRoot, err := util.ParseAstFromSnippet(tmpl)
+		util.Crc32(tjump.rule.String()))
+	p := ast.NewAstParser()
+	astRoot, err := p.ParseSnippet(tmpl)
 	if err != nil {
 		return nil, err
 	}
@@ -182,21 +192,20 @@ func (rp *RuleProcessor) removeOnEnterTrampolineCall(tjump *TJump) error {
 	// Rewrite condition of trampoline-jump-if to always false and null out its
 	// initialization statement and then block
 	tjump.ifStmt.Init = nil
-	tjump.ifStmt.Cond = util.BoolFalse()
-	tjump.ifStmt.Body = util.Block(newDecoratedEmptyStmt())
+	tjump.ifStmt.Cond = ast.BoolFalse()
+	tjump.ifStmt.Body = ast.Block(ast.EmptyStmt())
 	if config.GetConf().Verbose {
 		util.Log("Optimize tjump branch in %s", tjump.target.Name.Name)
 	}
 	// Remove generated onEnter trampoline function
 	removed := rp.removeDeclWhen(func(d dst.Decl) bool {
 		if funcDecl, ok := d.(*dst.FuncDecl); ok {
-			return funcDecl.Name.Name == rp.makeName(tjump.rule, true)
-
+			return funcDecl.Name.Name == makeName(tjump.rule, tjump.target, true)
 		}
 		return false
 	})
 	if removed == nil {
-		return errc.New(errc.ErrInternal, "onEnter trampoline not found")
+		return ex.Newf("onEnter trampoline not found")
 	}
 	return nil
 }
@@ -206,30 +215,38 @@ func flattenTJump(tjump *TJump, removedOnExit bool) {
 	initStmt := ifStmt.Init.(*dst.AssignStmt)
 	util.Assert(len(initStmt.Lhs) == 2, "must be")
 
-	ifStmt.Cond = util.BoolFalse()
-	ifStmt.Body = util.Block(newDecoratedEmptyStmt())
+	ifStmt.Cond = ast.BoolFalse()
+	ifStmt.Body = ast.Block(ast.EmptyStmt())
 
 	if removedOnExit {
 		// We removed the last reference to call context after nulling out body
 		// block, at this point, all lhs are unused, replace assignment to simple
 		// function call
-		ifStmt.Init = util.ExprStmt(initStmt.Rhs[0])
+		ifStmt.Init = ast.ExprStmt(initStmt.Rhs[0])
 		// TODO: Remove onExit declaration
 	} else {
 		// Otherwise, mark skipCall identifier as unused
 		skipCallIdent := initStmt.Lhs[1].(*dst.Ident)
-		util.MakeUnusedIdent(skipCallIdent)
+		ast.MakeUnusedIdent(skipCallIdent)
 	}
 	if config.GetConf().Verbose {
 		util.Log("Optimize skipCall in %s", tjump.target.Name.Name)
 	}
 }
 
+func stripTJumpLabel(tjump *TJump) {
+	ifStmt := tjump.ifStmt
+	ifStmt.Decs.If = ifStmt.Decs.If[1:]
+}
+
 func (rp *RuleProcessor) optimizeTJumps() (err error) {
 	for _, tjump := range rp.trampolineJumps {
 		mustTJump(tjump.ifStmt)
+		// Strip the trampoline-jump-if anchor label as no longer needed
+		stripTJumpLabel(tjump)
+
 		// No onExit hook present? Simply remove defer call to onExit trampoline.
-		// Why we dont remove the whole else block of trampoline-jump-if? Well,
+		// Why we don't remove the whole else block of trampoline-jump-if? Well,
 		// because there might be more than one trampoline-jump-if in the same
 		// function, they are nested in the else block. See findJumpPoint for
 		// more details.
@@ -243,6 +260,7 @@ func (rp *RuleProcessor) optimizeTJumps() (err error) {
 			}
 			removedOnExit = true
 		}
+
 		// No onEnter hook present? Construct CallContext on the fly and pass it
 		// to onExit trampoline defer call and rewrite the whole condition to
 		// always false, then null out its initialization statement.

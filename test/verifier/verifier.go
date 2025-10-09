@@ -18,17 +18,17 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // VerifyDbAttributes TODO: make attribute name to semconv attribute
-func VerifyDbAttributes(span tracetest.SpanStub, name, system, address, statement, operation string) {
+func VerifyDbAttributes(span tracetest.SpanStub, name, system, address, statement, operation, collection string, params []any) {
 	Assert(span.SpanKind == trace.SpanKindClient, "Expect to be client span, got %d", span.SpanKind)
 	Assert(span.Name == name, "Except client span name to be %s, got %s", name, span.Name)
-	actualSystem := GetAttribute(span.Attributes, "db.system").AsString()
+	actualSystem := GetAttribute(span.Attributes, "db.system.name").AsString()
 	Assert(actualSystem == system, "Except client db system to be %s, got %s", system, actualSystem)
 	actualConnStr := GetAttribute(span.Attributes, "server.address").AsString()
 	Assert(strings.Contains(actualConnStr, address), "Except client address str to be %s, got %s", address, actualConnStr)
@@ -36,6 +36,10 @@ func VerifyDbAttributes(span tracetest.SpanStub, name, system, address, statemen
 	Assert(strings.Contains(actualStatement, statement), "Except client db statement to be %s, got %s", statement, actualStatement)
 	actualOperation := GetAttribute(span.Attributes, "db.operation.name").AsString()
 	Assert(actualOperation == operation, "Except client db operation to be %s, got %s", operation, actualOperation)
+	actualCollection := GetAttribute(span.Attributes, "db.collection.name").AsString()
+	Assert(actualCollection == collection, "Expect client collection to be %s, got %s", collection, actualCollection)
+	actualParams := GetAttributesWithPrefix(span.Attributes, "db.query.parameter")
+	SliceAttrsAssert(params, actualParams, "Expect client db params to be %#v, got %#v", params, actualParams)
 }
 
 func VerifyHttpClientAttributes(span tracetest.SpanStub, name, method, fullUrl, protocolName, protocolVersion, networkTransport, networkType, localAddr, peerAddr string, statusCode, localPort, peerPort int64) {
@@ -111,9 +115,16 @@ func verifyRpcAttributes(span tracetest.SpanStub, name, system, service, method 
 }
 
 func VerifyDbMetricsAttributes(attrs []attribute.KeyValue, dbSystem, operationName, serverAddress string) {
-	Assert(GetAttribute(attrs, string(semconv.DBSystemKey)).AsString() == dbSystem, "Expected db.system to be %s, got %s", dbSystem, GetAttribute(attrs, string(semconv.DBSystemKey)).AsString())
+	Assert(GetAttribute(attrs, string(semconv.DBSystemNameKey)).AsString() == dbSystem, "Expected db.system.name to be %s, got %s", dbSystem, GetAttribute(attrs, string(semconv.DBSystemNameKey)).AsString())
 	Assert(GetAttribute(attrs, string(semconv.DBOperationNameKey)).AsString() == operationName, "Expected db.operation.name to be %s, got %s", operationName, GetAttribute(attrs, string(semconv.DBOperationNameKey)).AsString())
 	Assert(GetAttribute(attrs, string(semconv.ServerAddressKey)).AsString() == serverAddress, "Expected server.address to be %s, got %s", serverAddress, GetAttribute(attrs, string(semconv.ServerAddressKey)).AsString())
+}
+
+func VerifyGenAIOperationDurationMetricsAttributes(attrs []attribute.KeyValue, operationName, system, requestModel, responseModel string) {
+	Assert(GetAttribute(attrs, string(semconv.GenAIOperationNameKey)).AsString() == operationName, "Expected gen_ai.operation.name to be %s, got %s", operationName, GetAttribute(attrs, string(semconv.GenAIOperationNameKey)).AsString())
+	Assert(GetAttribute(attrs, string(semconv.GenAISystemKey)).AsString() == system, "Expected gen_ai.system to be %s, got %s", system, GetAttribute(attrs, string(semconv.GenAISystemKey)).AsString())
+	Assert(GetAttribute(attrs, string(semconv.GenAIRequestModelKey)).AsString() == requestModel, "Expected gen_ai.request.model to be %s, got %s", requestModel, GetAttribute(attrs, string(semconv.GenAIRequestModelKey)).AsString())
+	Assert(GetAttribute(attrs, string(semconv.GenAIResponseModelKey)).AsString() == responseModel, "Expected gen_ai.response.model to be %s, got %s", responseModel, GetAttribute(attrs, string(semconv.GenAIResponseModelKey)).AsString())
 }
 
 func VerifyRpcClientMetricsAttributes(attrs []attribute.KeyValue, method, service, system, serverAddr string) {
@@ -128,4 +139,67 @@ func VerifyRpcServerMetricsAttributes(attrs []attribute.KeyValue, method, servic
 	Assert(GetAttribute(attrs, "rpc.service").AsString() == service, "Except rpc.service to be %s, got %s", service, GetAttribute(attrs, "rpc.service").AsString())
 	Assert(GetAttribute(attrs, "rpc.system").AsString() == system, "Except rpc.system to be %s, got %s", system, GetAttribute(attrs, "rpc.system").AsString())
 	Assert(GetAttribute(attrs, "server.address").AsString() == serverAddr, "Except rpc.system to be %s, got %s", serverAddr, GetAttribute(attrs, "server.address").AsString())
+}
+
+func VerifyLLMAttributes(span tracetest.SpanStub, name string, system string, model string) {
+	Assert(span.Name == name, "Except client span name to be %s, got %s", name, span.Name)
+	actualSystem := GetAttribute(span.Attributes, "gen_ai.system").AsString()
+	Assert(actualSystem == system, "Except gen_ai.system to be %s, got %s", system, actualSystem)
+	optName := GetAttribute(span.Attributes, "gen_ai.operation.name").AsString()
+	Assert(optName == name, "Except gen_ai.operation.name to be %s, got %s", name, optName)
+	optModel := GetAttribute(span.Attributes, "gen_ai.request.model").AsString()
+	Assert(optModel == model, "Except gen_ai.request.model to be %s, got %s", model, optModel)
+	Assert(span.SpanKind == trace.SpanKindClient, "Expect to be client span, got %d", span.SpanKind)
+}
+func VerifyLLMCommonAttributes(span tracetest.SpanStub, name string, system string, spanKind trace.SpanKind) {
+	Assert(span.Name == name, "Except client span name to be %s, got %s", name, span.Name)
+	actualSystem := GetAttribute(span.Attributes, "gen_ai.system").AsString()
+	Assert(actualSystem == system, "Except gen_ai.system to be %s, got %s", system, actualSystem)
+	optName := GetAttribute(span.Attributes, "gen_ai.operation.name").AsString()
+	Assert(optName == name, "Except gen_ai.operation.name to be %s, got %s", name, optName)
+	Assert(span.SpanKind == spanKind, "Expect to be %s span, got %d", spanKind, span.SpanKind)
+}
+func VerifyMQPublishAttributes(span tracetest.SpanStub, exchange, routing, queue, operationName, destination string, system string) {
+	Assert(span.Name == destination+" "+operationName, "Except client span name to be %s, got %s", destination+" "+string(operationName), span.Name)
+	actualDestination := GetAttribute(span.Attributes, "messaging.destination.name").AsString()
+	Assert(actualDestination == destination, "Except messaging.destination.name to be %s, got %s", destination, actualDestination)
+	optName := GetAttribute(span.Attributes, "messaging.operation.name").AsString()
+	Assert(optName == operationName, "Except messaging.operation.name to be %s, got %s", operationName, optName)
+	if routing != "" {
+		routingKey := GetAttribute(span.Attributes, "messaging.rabbitmq.destination.routing_key").AsString()
+		Assert(routingKey == routing, "Except messaging.rabbitmq.destination.routing_key to be %s, got %s", routing, routingKey)
+	}
+	actualSystem := GetAttribute(span.Attributes, "messaging.system").AsString()
+	Assert(actualSystem == system, "Except messaging.system to be %s, got %s", system, actualSystem)
+	Assert(span.SpanKind == trace.SpanKindProducer, "Expect to be producer span, got %d", span.SpanKind)
+}
+func VerifyMQConsumeAttributes(span tracetest.SpanStub, exchange, routing, queue, operationName, destination string, system string) {
+	Assert(span.Name == destination+" "+operationName, "Except client span name to be %s, got %s", destination+" "+string(operationName), span.Name)
+	actualDestination := GetAttribute(span.Attributes, "messaging.destination.name").AsString()
+	Assert(actualDestination == destination, "Except messaging.destination.name to be %s, got %s", destination, actualDestination)
+	optName := GetAttribute(span.Attributes, "messaging.operation.name").AsString()
+	Assert(optName == operationName, "Except messaging.operation.name to be %s, got %s", operationName, optName)
+	if routing != "" {
+		routingKey := GetAttribute(span.Attributes, "messaging.rabbitmq.destination.routing_key").AsString()
+		Assert(routingKey == routing, "Except messaging.rabbitmq.destination.routing_key to be %s, got %s", routing, routingKey)
+	}
+	actualSystem := GetAttribute(span.Attributes, "messaging.system").AsString()
+	Assert(actualSystem == system, "Except messaging.system to be %s, got %s", system, actualSystem)
+	Assert(span.SpanKind == trace.SpanKindConsumer, "Expect to be consumer span, got %d", span.SpanKind)
+}
+
+func VerifySentinelAttributes(span tracetest.SpanStub, resourceName, EntryType, BlockType string, IsBlocked bool) {
+	Assert(GetAttribute(span.Attributes, "sentinel.resource.name").AsString() == resourceName, "Except resourceName to be %s, got %s", resourceName, GetAttribute(span.Attributes, "sentinel.resource.name").AsString())
+	Assert(GetAttribute(span.Attributes, "sentinel.entry.type").AsString() == EntryType, "Except EntryType to be %s, got %s", EntryType, GetAttribute(span.Attributes, "sentinel.entry.type").AsString())
+	Assert(GetAttribute(span.Attributes, "sentinel.block.type").AsString() == BlockType, "Except BlockType to be %s, got %s", BlockType, GetAttribute(span.Attributes, "sentinel.block.type").AsString())
+	Assert(GetAttribute(span.Attributes, "sentinel.is_blocked").AsBool() == IsBlocked, "Except IsBlocked to be %t, got %t", IsBlocked, GetAttribute(span.Attributes, "sentinel.is_blocked").AsBool())
+}
+
+func VerifyK8sPodEventAttributes(span tracetest.SpanStub, eventType, objectName, objectKind, objectNamespace string, objectApiVersion string) {
+	Assert(span.Name == "k8s.informer.Pod.process", "Expected span name to be 'k8s.informer.Pod.process', got %s", span.Name)
+	Assert(GetAttribute(span.Attributes, "k8s.event.type").AsString() == eventType, "Expected k8s.event.type to be %s, got %s", eventType, GetAttribute(span.Attributes, "k8s.event.type").AsString())
+	Assert(GetAttribute(span.Attributes, "k8s.object.name").AsString() == objectName, "Expected k8s.object.name to be %s, got %s", objectName, GetAttribute(span.Attributes, "k8s.object.name").AsString())
+	Assert(GetAttribute(span.Attributes, "k8s.object.kind").AsString() == objectKind, "Expected k8s.object.kind to be %s, got %s", objectKind, GetAttribute(span.Attributes, "k8s.object.kind").AsString())
+	Assert(GetAttribute(span.Attributes, "k8s.namespace.name").AsString() == objectNamespace, "Expected k8s.object.namespace to be %s, got %s", objectNamespace, GetAttribute(span.Attributes, "k8s.object.namespace").AsString())
+	Assert(GetAttribute(span.Attributes, "k8s.object.api_version").AsString() == objectApiVersion, "Expected k8s.object.api_version to be %s, got %s", objectApiVersion, GetAttribute(span.Attributes, "k8s.object.api_version").AsString())
 }

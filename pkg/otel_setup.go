@@ -1,5 +1,3 @@
-//go:build ignore
-
 // Copyright (c) 2024 Alibaba Group Holding Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,21 +18,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api-semconv/instrumenter/db"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api-semconv/instrumenter/experimental"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api-semconv/instrumenter/rpc"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel/exporters/prometheus"
 	"log"
 	http2 "net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/core/meter"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/pkg/inst-api-semconv/instrumenter/http"
-	"github.com/alibaba/opentelemetry-go-auto-instrumentation/test/verifier"
+	"github.com/alibaba/loongsuite-go-agent/pkg/core/meter"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/ai"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/db"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/experimental"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/http"
+	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/rpc"
+	testaccess "github.com/alibaba/loongsuite-go-agent/pkg/testaccess"
+	prometheus_client "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	otelruntime "go.opentelemetry.io/contrib/instrumentation/runtime"
+
+	// The version of the following packages/modules must be fixed
 	"go.opentelemetry.io/otel"
 	_ "go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
@@ -42,9 +44,16 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/exporters/zipkin"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 // set the following environment variables based on https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables
@@ -55,17 +64,27 @@ const exec_name = "otel"
 const report_protocol = "OTEL_EXPORTER_OTLP_PROTOCOL"
 const trace_report_protocol = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"
 const metrics_exporter = "OTEL_METRICS_EXPORTER"
+const trace_exporter = "OTEL_TRACES_EXPORTER"
 const prometheus_exporter_port = "OTEL_EXPORTER_PROMETHEUS_PORT"
 const default_prometheus_exporter_port = "9464"
 
+const trace_sampler = "OTEL_TRACE_SAMPLER"
+
 var (
+	metricExporter     metric.Exporter
 	spanExporter       trace.SpanExporter
 	traceProvider      *trace.TracerProvider
-	metricsProvider    *metric.MeterProvider
+	metricsProvider    otelmetric.MeterProvider
 	batchSpanProcessor trace.SpanProcessor
+	spanSampler        trace.Sampler
 )
 
 func init() {
+	if testaccess.IsInTest() {
+		trace.GetTestSpans = testaccess.GetTestSpans
+		metric.GetTestMetrics = testaccess.GetTestMetrics
+		trace.ResetTestSpans = testaccess.ResetTestSpans
+	}
 	ctx := context.Background()
 	// graceful shutdown
 	runtime.ExitHook = func() {
@@ -85,38 +104,68 @@ func init() {
 }
 
 func newSpanProcessor(ctx context.Context) trace.SpanProcessor {
-	if verifier.IsInTest() {
-		traceExporter := verifier.GetSpanExporter()
+	if testaccess.IsInTest() {
+		traceExporter := testaccess.GetSpanExporter()
 		// in test, we just send the span immediately
 		simpleProcessor := trace.NewSimpleSpanProcessor(traceExporter)
 		return simpleProcessor
 	} else {
 		var err error
-		if os.Getenv(report_protocol) == "grpc" || os.Getenv(trace_report_protocol) == "grpc" {
-			spanExporter, err = otlptrace.New(ctx, otlptracegrpc.NewClient())
-			if err != nil {
-				log.Fatalf("%s: %v", "Failed to create the OpenTelemetry trace exporter", err)
-			}
+		if os.Getenv(trace_exporter) == "none" {
+			spanExporter = tracetest.NewNoopExporter()
+		} else if os.Getenv(trace_exporter) == "console" {
+			spanExporter, err = stdouttrace.New()
+		} else if os.Getenv(trace_exporter) == "zipkin" {
+			spanExporter, err = zipkin.New("")
 		} else {
-			spanExporter, err = otlptrace.New(ctx, otlptracehttp.NewClient())
-			if err != nil {
-				log.Fatalf("%s: %v", "Failed to create the OpenTelemetry trace exporter", err)
+			if os.Getenv(report_protocol) == "grpc" || os.Getenv(trace_report_protocol) == "grpc" {
+				spanExporter, err = otlptrace.New(ctx, otlptracegrpc.NewClient())
+			} else {
+				spanExporter, err = otlptrace.New(ctx, otlptracehttp.NewClient())
 			}
+		}
+		if err != nil {
+			log.Fatalf("%s: %v", "Failed to create the OpenTelemetry trace exporter", err)
 		}
 		batchSpanProcessor = trace.NewBatchSpanProcessor(spanExporter)
 		return batchSpanProcessor
 	}
 }
 
+func newSpanSampler() trace.Sampler {
+	samplerStr := os.Getenv(trace_sampler)
+	samplerStr = strings.TrimSpace(samplerStr)
+	if samplerStr == "" {
+		return trace.ParentBased(trace.AlwaysSample())
+	}
+
+	sampler, err := strconv.ParseFloat(samplerStr, 64)
+	if err != nil {
+		log.Printf("Invalid OTEL_TRACE_SAMPLER value: %s, fallback to parent based sampler", samplerStr)
+		return trace.ParentBased(trace.AlwaysSample())
+	}
+
+	if sampler <= 0 {
+		return trace.NeverSample()
+	} else if sampler >= 1 {
+		return trace.AlwaysSample()
+	} else {
+		return trace.ParentBased(trace.TraceIDRatioBased(sampler))
+	}
+}
+
 func initOpenTelemetry(ctx context.Context) error {
 
 	batchSpanProcessor = newSpanProcessor(ctx)
+	spanSampler = newSpanSampler()
 
 	if batchSpanProcessor != nil {
 		traceProvider = trace.NewTracerProvider(
-			trace.WithSpanProcessor(batchSpanProcessor))
+			trace.WithSpanProcessor(batchSpanProcessor),
+			trace.WithSampler(spanSampler),
+		)
 	} else {
-		traceProvider = trace.NewTracerProvider()
+		traceProvider = trace.NewTracerProvider(trace.WithSampler(spanSampler))
 	}
 
 	otel.SetTracerProvider(traceProvider)
@@ -127,37 +176,44 @@ func initOpenTelemetry(ctx context.Context) error {
 func initMetrics() error {
 	ctx := context.Background()
 	// TODO: abstract the if-else
-	if verifier.IsInTest() {
+	var err error
+	if testaccess.IsInTest() {
 		metricsProvider = metric.NewMeterProvider(
-			metric.WithReader(verifier.ManualReader),
+			metric.WithReader(testaccess.ManualReader),
 		)
 	} else {
-		if os.Getenv(metrics_exporter) == "prometheus" {
-			exporter, err := prometheus.New()
+		if os.Getenv(metrics_exporter) == "none" {
+			metricsProvider = noop.NewMeterProvider()
+		} else if os.Getenv(metrics_exporter) == "console" {
+			metricExporter, err = stdoutmetric.New()
+			metricsProvider = metric.NewMeterProvider(
+				metric.WithReader(metric.NewPeriodicReader(metricExporter)),
+			)
+		} else if os.Getenv(metrics_exporter) == "prometheus" {
+			promExporter, err := prometheus.New()
 			if err != nil {
-				log.Fatalf("new otlp metric prometheus exporter failed: %v", err)
+				log.Fatalf("Failed to create prometheus metric exporter: %v", err)
 			}
 			metricsProvider = metric.NewMeterProvider(
-				metric.WithReader(exporter),
+				metric.WithReader(promExporter),
 			)
 			go serveMetrics()
-		} else if os.Getenv(report_protocol) == "grpc" || os.Getenv(trace_report_protocol) == "grpc" {
-			exporter, err := otlpmetricgrpc.New(ctx)
-			if err != nil {
-				log.Fatalf("new otlp metric grpc exporter failed: %v", err)
-			}
-			metricsProvider = metric.NewMeterProvider(
-				metric.WithReader(metric.NewPeriodicReader(exporter)),
-			)
 		} else {
-			exporter, err := otlpmetrichttp.New(ctx)
-			if err != nil {
-				log.Fatalf("new otlp metric http exporter failed: %v", err)
+			if os.Getenv(report_protocol) == "grpc" || os.Getenv(trace_report_protocol) == "grpc" {
+				metricExporter, err = otlpmetricgrpc.New(ctx)
+				metricsProvider = metric.NewMeterProvider(
+					metric.WithReader(metric.NewPeriodicReader(metricExporter)),
+				)
+			} else {
+				metricExporter, err = otlpmetrichttp.New(ctx)
+				metricsProvider = metric.NewMeterProvider(
+					metric.WithReader(metric.NewPeriodicReader(metricExporter)),
+				)
 			}
-			metricsProvider = metric.NewMeterProvider(
-				metric.WithReader(metric.NewPeriodicReader(exporter)),
-			)
 		}
+	}
+	if err != nil {
+		log.Fatalf("Failed to create metric exporter: %v", err)
 	}
 	if metricsProvider == nil {
 		return errors.New("No MeterProvider is provided")
@@ -171,14 +227,23 @@ func initMetrics() error {
 	rpc.InitRpcMetrics(m)
 	// init db metrics
 	db.InitDbMetrics(m)
+	// init ai metrics
+	ai.InitAIMetrics(m)
 	// nacos experimental metrics
 	experimental.InitNacosExperimentalMetrics(m)
+	// sentinel experimental metrics
+	experimental.InitSentinelExperimentalMetrics(m)
 	// DefaultMinimumReadMemStatsInterval is 15 second
 	return otelruntime.Start(otelruntime.WithMeterProvider(metricsProvider))
 }
 
 func serveMetrics() {
-	http2.Handle("/metrics", promhttp.Handler())
+	http2.Handle("/metrics", promhttp.HandlerFor(
+		prometheus_client.DefaultGatherer,
+		promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		},
+	))
 	port := os.Getenv(prometheus_exporter_port)
 	if port == "" {
 		port = default_prometheus_exporter_port
@@ -193,23 +258,21 @@ func serveMetrics() {
 
 func gracefullyShutdown(ctx context.Context) {
 	if metricsProvider != nil {
-		if err := metricsProvider.Shutdown(ctx); err != nil {
-			log.Printf("%s: %v", "Failed to shutdown the OpenTelemetry metric provider", err)
+		mp, ok := metricsProvider.(*metric.MeterProvider)
+		if ok {
+			_ = mp.Shutdown(ctx)
 		}
 	}
 	if traceProvider != nil {
-		if err := traceProvider.Shutdown(ctx); err != nil {
-			log.Printf("%s: %v", "Failed to shutdown the OpenTelemetry trace provider", err)
-		}
+		_ = traceProvider.Shutdown(ctx)
 	}
 	if spanExporter != nil {
-		if err := spanExporter.Shutdown(ctx); err != nil {
-			log.Printf("%s: %v", "Failed to shutdown the OpenTelemetry span exporter", err)
-		}
+		_ = spanExporter.Shutdown(ctx)
+	}
+	if metricExporter != nil {
+		_ = metricExporter.Shutdown(ctx)
 	}
 	if batchSpanProcessor != nil {
-		if err := batchSpanProcessor.Shutdown(ctx); err != nil {
-			log.Printf("%s: %v", "Failed to shutdown the OpenTelemetry batch span processor", err)
-		}
+		_ = batchSpanProcessor.Shutdown(ctx)
 	}
 }
