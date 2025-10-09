@@ -28,8 +28,6 @@ func main() {
 		pkg.SetupHttp()
 	}()
 
-	http.ListenAndServe("0.0.0.0:6060", nil)
-
 	signalCh := make(chan os.Signal, 1)
 
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
