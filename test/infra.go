@@ -191,6 +191,23 @@ func RunApp(t *testing.T, appName string, env ...string) (string, string) {
 	return stdoutText, stderrText
 }
 
+// RunAppWithoutTestMode runs the application without setting IN_OTEL_TEST=true
+// This allows the app to use real exporters (console, OTLP, etc.) instead of ManualReader
+func RunAppWithoutTestMode(t *testing.T, appName string, env ...string) (string, string) {
+	cmd := runCmd([]string{"./" + appName})
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, env...)
+	// Do NOT set IN_OTEL_TEST=true, so real exporters are used
+	err := cmd.Run()
+	stdoutText := readStdoutLog(t)
+	stderrText := readStderrLog(t)
+	if err != nil {
+		t.Log(stdoutText)
+		t.Fatal(err, stderrText)
+	}
+	return stdoutText, stderrText
+}
+
 func FetchVersion(t *testing.T, dependency, version string) string {
 	t.Logf("dependency %s, version %s", dependency, version)
 	output, err := exec.Command("go", "get", dependency+"@"+version).Output()
