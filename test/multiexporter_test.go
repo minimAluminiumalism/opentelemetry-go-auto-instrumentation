@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Alibaba Group Holding Ltd.
+// Copyright (c) 2025 Alibaba Group Holding Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import (
 
 func TestMultiExporter(t *testing.T) {
 	UseApp("multiexporter")
-	RunGoBuild(t, "go", "build", "--", "test_multi_exporter.go")
+	RunGoBuild(t, "go", "build", "test_multi_exporter.go")
 	
 	env := []string{
 		"OTEL_TRACES_EXPORTER=console,otlp",
