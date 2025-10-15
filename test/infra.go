@@ -184,8 +184,8 @@ func RunApp(t *testing.T, appName string, env ...string) (string, string) {
 	// Check if user has explicitly set IN_OTEL_TEST
 	// If not, default to `true`
 	hasTestFlag := false
-	for _, e := range env {
-		if strings.HasPrefix(e, "IN_OTEL_TEST=") {
+	for i := len(cmd.Env) - 1; i >= 0; i-- {
+		if strings.HasPrefix(cmd.Env[i], "IN_OTEL_TEST=") {
 			hasTestFlag = true
 			break
 		}
