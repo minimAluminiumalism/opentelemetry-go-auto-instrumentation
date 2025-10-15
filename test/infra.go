@@ -180,24 +180,20 @@ func RunApp(t *testing.T, appName string, env ...string) (string, string) {
 	cmd := runCmd([]string{"./" + appName})
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, env...)
-	cmd.Env = append(cmd.Env, "IN_OTEL_TEST=true")
-	err := cmd.Run()
-	stdoutText := readStdoutLog(t)
-	stderrText := readStderrLog(t)
-	if err != nil {
-		t.Log(stdoutText)
-		t.Fatal(err, stderrText)
+	
+	// Check if user has explicitly set IN_OTEL_TEST
+	// If not, default to `true`
+	hasTestFlag := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "IN_OTEL_TEST=") {
+			hasTestFlag = true
+			break
+		}
 	}
-	return stdoutText, stderrText
-}
-
-// RunAppWithoutTestMode runs the application without setting IN_OTEL_TEST=true
-// This allows the app to use real exporters (console, OTLP, etc.) instead of ManualReader
-func RunAppWithoutTestMode(t *testing.T, appName string, env ...string) (string, string) {
-	cmd := runCmd([]string{"./" + appName})
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, env...)
-	// Do NOT set IN_OTEL_TEST=true, so real exporters are used
+	if !hasTestFlag {
+		cmd.Env = append(cmd.Env, "IN_OTEL_TEST=true")
+	}
+	
 	err := cmd.Run()
 	stdoutText := readStdoutLog(t)
 	stderrText := readStderrLog(t)

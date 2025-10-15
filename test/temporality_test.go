@@ -30,9 +30,10 @@ func TestTemporalityCumulative(t *testing.T) {
 	env := []string{
 		"OTEL_METRICS_EXPORTER=console",
 		"OTEL_SERVICE_NAME=temporality-test-cumulative",
+		"IN_OTEL_TEST=false", // Use real exporters instead of ManualReader
 	}
 
-	stdout, _ := RunAppWithoutTestMode(t, "test_temporality", env...)
+	stdout, _ := RunApp(t, "test_temporality", env...)
 	
 	ExpectContains(t, stdout, "Temporality test completed successfully")
 	
@@ -48,9 +49,10 @@ func TestTemporalityDelta(t *testing.T) {
 		"OTEL_METRICS_EXPORTER=console",
 		"OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta",
 		"OTEL_SERVICE_NAME=temporality-test-delta",
+		"IN_OTEL_TEST=false", // Use real exporters instead of ManualReader
 	}
 
-	stdout, _ := RunAppWithoutTestMode(t, "test_temporality", env...)
+	stdout, _ := RunApp(t, "test_temporality", env...)
 	
 	ExpectContains(t, stdout, "Temporality test completed successfully")
 	verifyTemporality(t, stdout, "delta")
@@ -65,9 +67,10 @@ func TestTemporalityLowMemory(t *testing.T) {
 		"OTEL_METRICS_EXPORTER=console",
 		"OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=lowmemory",
 		"OTEL_SERVICE_NAME=temporality-test-lowmemory",
+		"IN_OTEL_TEST=false", // Use real exporters instead of ManualReader
 	}
 
-	stdout, _ := RunAppWithoutTestMode(t, "test_temporality", env...)
+	stdout, _ := RunApp(t, "test_temporality", env...)
 	
 	ExpectContains(t, stdout, "Temporality test completed successfully")
 	verifyTemporality(t, stdout, "lowmemory")
@@ -83,9 +86,10 @@ func TestTemporalityCaseInsensitive(t *testing.T) {
 		"OTEL_METRICS_EXPORTER=console",
 		"OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=DELTA",
 		"OTEL_SERVICE_NAME=temporality-test-uppercase",
+		"IN_OTEL_TEST=false", // Use real exporters instead of ManualReader
 	}
 
-	stdout, _ := RunAppWithoutTestMode(t, "test_temporality", env...)
+	stdout, _ := RunApp(t, "test_temporality", env...)
 	ExpectContains(t, stdout, "Temporality test completed successfully")
 	verifyTemporality(t, stdout, "delta")
 
@@ -94,9 +98,10 @@ func TestTemporalityCaseInsensitive(t *testing.T) {
 		"OTEL_METRICS_EXPORTER=console",
 		"OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=LowMemory",
 		"OTEL_SERVICE_NAME=temporality-test-mixedcase",
+		"IN_OTEL_TEST=false", // Use real exporters instead of ManualReader
 	}
 
-	stdout, _ = RunAppWithoutTestMode(t, "test_temporality", env...)
+	stdout, _ = RunApp(t, "test_temporality", env...)
 	ExpectContains(t, stdout, "Temporality test completed successfully")
 	verifyTemporality(t, stdout, "lowmemory")
 }
