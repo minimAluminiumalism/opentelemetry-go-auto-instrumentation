@@ -24,64 +24,67 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var scopeKey = map[string]attribute.Key{
+var scopeToCategory = map[string]string{
 	// http
-	utils.FAST_HTTP_CLIENT_SCOPE_NAME:  utils.HTTP_CLIENT_KEY,
-	utils.FAST_HTTP_SERVER_SCOPE_NAME:  utils.HTTP_SERVER_KEY,
-	utils.NET_HTTP_CLIENT_SCOPE_NAME:   utils.HTTP_CLIENT_KEY,
-	utils.NET_HTTP_SERVER_SCOPE_NAME:   utils.HTTP_SERVER_KEY,
-	utils.HERTZ_HTTP_CLIENT_SCOPE_NAME: utils.HTTP_CLIENT_KEY,
-	utils.HERTZ_HTTP_SERVER_SCOPE_NAME: utils.HTTP_SERVER_KEY,
-	utils.FIBER_V2_SERVER_SCOPE_NAME:   utils.HTTP_SERVER_KEY,
-	utils.ELASTICSEARCH_SCOPE_NAME:     utils.HTTP_CLIENT_KEY,
+	"loongsuite.instrumentation.fasthttp":      "http",
+	"loongsuite.instrumentation.nethttp":       "http",
+	"loongsuite.instrumentation.hertz":         "http",
+	"loongsuite.instrumentation.fiber":         "http",
+	"loongsuite.instrumentation.elasticsearch": "http",
 
 	// grpc
-	utils.GRPC_CLIENT_SCOPE_NAME: utils.RPC_CLIENT_KEY,
-	utils.GRPC_SERVER_SCOPE_NAME: utils.RPC_SERVER_KEY,
-
-	utils.TRPCGO_CLIENT_SCOPE_NAME: utils.RPC_CLIENT_KEY,
-	utils.TRPCGO_SERVER_SCOPE_NAME: utils.RPC_SERVER_KEY,
+	"loongsuite.instrumentation.grpc":   "rpc",
+	"loongsuite.instrumentation.trpc":   "rpc",
+	"loongsuite.instrumentation.kitex":  "rpc",
+	"loongsuite.instrumentation.dubbo":  "rpc",
+	"loongsuite.instrumentation.gomicro": "rpc",
 
 	// database
-	utils.DATABASE_SQL_SCOPE_NAME: utils.DB_CLIENT_KEY,
-	utils.GO_REDIS_V9_SCOPE_NAME:  utils.DB_CLIENT_KEY,
-	utils.GO_REDIS_V8_SCOPE_NAME:  utils.DB_CLIENT_KEY,
-	utils.REDIGO_SCOPE_NAME:       utils.DB_CLIENT_KEY,
-	utils.MONGO_SCOPE_NAME:        utils.DB_CLIENT_KEY,
-	utils.GORM_SCOPE_NAME:         utils.DB_CLIENT_KEY,
-	utils.GOPG_SCOPE_NAME:         utils.DB_CLIENT_KEY,
+	"loongsuite.instrumentation.databasesql": "db",
+	"loongsuite.instrumentation.goredisv9":   "db",
+	"loongsuite.instrumentation.goredisv8":   "db",
+	"loongsuite.instrumentation.redigo":      "db",
+	"loongsuite.instrumentation.mongo":       "db",
+	"loongsuite.instrumentation.gorm":        "db",
+	"loongsuite.instrumentation.gopg":        "db",
+	"loongsuite.instrumentation.gocql":       "db",
+	"loongsuite.instrumentation.sqlx":        "db",
+
+	// messaging
+	"loongsuite.instrumentation.amqp091":   "messaging",
+	"loongsuite.instrumentation.kafka-go":  "messaging",
+	"loongsuite.instrumentation.rocketmq":  "messaging",
+
+	// ai/llm
+	"loongsuite.instrumentation.eino":      "ai",
+	"loongsuite.instrumentation.langchain": "ai",
+
+	// other
+	"loongsuite.instrumentation.kratos":        "http",
+	"loongsuite.instrumentation.mcp":           "rpc",
+	"loongsuite.instrumentation.k8s-client-go": "http",
+	"loongsuite.instrumentation.sentinel":      "other",
 }
 
-var kindKey = map[string]trace.SpanKind{
-	// http
-	utils.FAST_HTTP_CLIENT_SCOPE_NAME:  trace.SpanKindClient,
-	utils.FAST_HTTP_SERVER_SCOPE_NAME:  trace.SpanKindServer,
-	utils.NET_HTTP_CLIENT_SCOPE_NAME:   trace.SpanKindClient,
-	utils.NET_HTTP_SERVER_SCOPE_NAME:   trace.SpanKindServer,
-	utils.HERTZ_HTTP_CLIENT_SCOPE_NAME: trace.SpanKindClient,
-	utils.HERTZ_HTTP_SERVER_SCOPE_NAME: trace.SpanKindServer,
-	utils.FIBER_V2_SERVER_SCOPE_NAME:   trace.SpanKindServer,
-	utils.ELASTICSEARCH_SCOPE_NAME:     trace.SpanKindClient,
-
-	// grpc
-	utils.GRPC_CLIENT_SCOPE_NAME: trace.SpanKindClient,
-	utils.GRPC_SERVER_SCOPE_NAME: trace.SpanKindServer,
-
-	utils.TRPCGO_CLIENT_SCOPE_NAME: trace.SpanKindClient,
-	utils.TRPCGO_SERVER_SCOPE_NAME: trace.SpanKindServer,
-
-	// kitex
-	utils.KITEX_CLIENT_SCOPE_NAME: trace.SpanKindClient,
-	utils.KITEX_SERVER_SCOPE_NAME: trace.SpanKindServer,
-
-	// database
-	utils.DATABASE_SQL_SCOPE_NAME: trace.SpanKindClient,
-	utils.GO_REDIS_V9_SCOPE_NAME:  trace.SpanKindClient,
-	utils.GO_REDIS_V8_SCOPE_NAME:  trace.SpanKindClient,
-	utils.REDIGO_SCOPE_NAME:       trace.SpanKindClient,
-	utils.MONGO_SCOPE_NAME:        trace.SpanKindClient,
-	utils.GORM_SCOPE_NAME:         trace.SpanKindClient,
-	utils.GOPG_SCOPE_NAME:         trace.SpanKindClient,
+// getScopeKey returns the appropriate span key based on scope name and span kind
+func getScopeKey(scopeName string, spanKind trace.SpanKind) attribute.Key {
+	category := scopeToCategory[scopeName]
+	switch category {
+	case "http":
+		if spanKind == trace.SpanKindClient {
+			return utils.HTTP_CLIENT_KEY
+		}
+		return utils.HTTP_SERVER_KEY
+	case "rpc":
+		if spanKind == trace.SpanKindClient {
+			return utils.RPC_CLIENT_KEY
+		}
+		return utils.RPC_SERVER_KEY
+	case "db":
+		return utils.DB_CLIENT_KEY
+	default:
+		return ""
+	}
 }
 
 type SpanSuppressor interface {
@@ -123,7 +126,8 @@ func (s *SpanKeySuppressor) ShouldSuppress(parentContext context.Context, spanKi
 		if s, ok := span.(ottrace.ReadOnlySpan); ok {
 			instScopeName := s.InstrumentationScope().Name
 			if instScopeName != "" {
-				parentSpanKey := scopeKey[instScopeName]
+				parentSpanKind := s.SpanKind()
+				parentSpanKey := getScopeKey(instScopeName, parentSpanKind)
 				if spanKey != parentSpanKey {
 					return false
 				}
@@ -146,10 +150,12 @@ func (s *SpanKindSuppressor) StoreInContext(context context.Context, spanKind tr
 
 func (s *SpanKindSuppressor) ShouldSuppress(parentContext context.Context, spanKind trace.SpanKind) bool {
 	span := trace.SpanFromContext(parentContext)
-	if s, ok := span.(ottrace.ReadOnlySpan); ok {
-		instScopeName := s.InstrumentationScope().Name
+	if readOnlySpan, ok := span.(ottrace.ReadOnlySpan); ok {
+		instScopeName := readOnlySpan.InstrumentationScope().Name
 		if instScopeName != "" {
-			parentSpanKind := kindKey[instScopeName]
+			// Now we compare the actual span kinds directly
+			// since scope name no longer distinguishes client/server
+			parentSpanKind := readOnlySpan.SpanKind()
 			if spanKind != parentSpanKind {
 				return false
 			}
