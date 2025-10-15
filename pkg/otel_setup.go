@@ -335,9 +335,12 @@ func initMetrics() error {
 }
 
 func createMetricReader(ctx context.Context, name string) (metric.Reader, metric.Exporter, error) {
+	// Get temporality selector for exporters that support it
+	temporalitySelector := getTemporalitySelector()
+	
 	switch name {
 	case "console":
-		exporter, err := stdoutmetric.New()
+		exporter, err := stdoutmetric.New(stdoutmetric.WithTemporalitySelector(temporalitySelector))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -352,9 +355,9 @@ func createMetricReader(ctx context.Context, name string) (metric.Reader, metric
 		var exporter metric.Exporter
 		var err error
 		if os.Getenv(report_protocol) == "grpc" || os.Getenv(trace_report_protocol) == "grpc" {
-			exporter, err = otlpmetricgrpc.New(ctx)
+			exporter, err = otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithTemporalitySelector(temporalitySelector))
 		} else {
-			exporter, err = otlpmetrichttp.New(ctx)
+			exporter, err = otlpmetrichttp.New(ctx, otlpmetrichttp.WithTemporalitySelector(temporalitySelector))
 		}
 		if err != nil {
 			return nil, nil, err
