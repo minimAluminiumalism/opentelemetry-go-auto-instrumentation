@@ -24,67 +24,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var scopeToCategory = map[string]string{
-	// http
-	"loongsuite.instrumentation.fasthttp":      "http",
-	"loongsuite.instrumentation.nethttp":       "http",
-	"loongsuite.instrumentation.hertz":         "http",
-	"loongsuite.instrumentation.fiber":         "http",
-	"loongsuite.instrumentation.elasticsearch": "http",
-
-	// grpc
-	"loongsuite.instrumentation.grpc":   "rpc",
-	"loongsuite.instrumentation.trpc":   "rpc",
-	"loongsuite.instrumentation.kitex":  "rpc",
-	"loongsuite.instrumentation.dubbo":  "rpc",
-	"loongsuite.instrumentation.gomicro": "rpc",
-
-	// database
-	"loongsuite.instrumentation.databasesql": "db",
-	"loongsuite.instrumentation.goredisv9":   "db",
-	"loongsuite.instrumentation.goredisv8":   "db",
-	"loongsuite.instrumentation.redigo":      "db",
-	"loongsuite.instrumentation.mongo":       "db",
-	"loongsuite.instrumentation.gorm":        "db",
-	"loongsuite.instrumentation.gopg":        "db",
-	"loongsuite.instrumentation.gocql":       "db",
-	"loongsuite.instrumentation.sqlx":        "db",
-
-	// messaging
-	"loongsuite.instrumentation.amqp091":   "messaging",
-	"loongsuite.instrumentation.kafka-go":  "messaging",
-	"loongsuite.instrumentation.rocketmq":  "messaging",
-
-	// ai/llm
-	"loongsuite.instrumentation.eino":      "ai",
-	"loongsuite.instrumentation.langchain": "ai",
-
-	// other
-	"loongsuite.instrumentation.kratos":        "http",
-	"loongsuite.instrumentation.mcp":           "rpc",
-	"loongsuite.instrumentation.k8s-client-go": "http",
-	"loongsuite.instrumentation.sentinel":      "other",
-}
-
 // getScopeKey returns the appropriate span key based on scope name and span kind
 func getScopeKey(scopeName string, spanKind trace.SpanKind) attribute.Key {
-	category := scopeToCategory[scopeName]
-	switch category {
-	case "http":
-		if spanKind == trace.SpanKindClient {
-			return utils.HTTP_CLIENT_KEY
-		}
-		return utils.HTTP_SERVER_KEY
-	case "rpc":
-		if spanKind == trace.SpanKindClient {
-			return utils.RPC_CLIENT_KEY
-		}
-		return utils.RPC_SERVER_KEY
-	case "db":
-		return utils.DB_CLIENT_KEY
-	default:
+	metadata := utils.GetInstrumentationMetadata(scopeName)
+	if metadata == nil {
 		return ""
 	}
+
+	if spanKind == trace.SpanKindClient {
+		return metadata.ClientKey
+	}
+	return metadata.ServerKey
 }
 
 type SpanSuppressor interface {
