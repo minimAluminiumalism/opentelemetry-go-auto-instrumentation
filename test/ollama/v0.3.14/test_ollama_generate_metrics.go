@@ -141,7 +141,7 @@ func main() {
 							if dp.Sum != 25 {
 								panic("Expected input tokens sum to be 25, got " + strconv.FormatInt(dp.Sum, 10))
 							}
-						} else if tokenType == "completion" {
+						} else if tokenType == "output" {
 							if dp.Sum != 50 {
 								panic("Expected output tokens sum to be 50, got " + strconv.FormatInt(dp.Sum, 10))
 							}
