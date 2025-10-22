@@ -114,10 +114,12 @@ func main() {
 					if attr.Key == "gen_ai.token.type" {
 						tokenType := attr.Value.AsString()
 						if tokenType == "input" {
+							inputTokensFound = true
 							if dp.Sum != 18 {
 								panic("Expected input tokens sum to be 18, got " + strconv.FormatInt(dp.Sum, 10))
 							}
 						} else if tokenType == "output" {
+							outputTokensFound = true
 							if dp.Sum != 28 {
 								panic("Expected output tokens sum to be 28, got " + strconv.FormatInt(dp.Sum, 10))
 							}

@@ -131,7 +131,7 @@ func main() {
 				panic("Input tokens (gen_ai.token.type=input) not found in metrics")
 			}
 			if !outputTokensFound {
-				panic("Output tokens (gen_ai.token.type=completion) not found in metrics")
+				panic("Output tokens (gen_ai.token.type=output) not found in metrics")
 			}
 		},
 		"gen_ai.server.time_to_first_token": func(mrs metricdata.ResourceMetrics) {
