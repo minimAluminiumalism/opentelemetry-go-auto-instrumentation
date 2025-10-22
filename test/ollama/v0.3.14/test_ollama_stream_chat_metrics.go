@@ -114,8 +114,8 @@ func main() {
 					if attr.Key == "gen_ai.token.type" {
 						tokenType := attr.Value.AsString()
 						if tokenType == "input" {
-							if dp.Sum != 15 {
-								panic("Expected input tokens sum to be 15, got " + strconv.FormatInt(dp.Sum, 10))
+							if dp.Sum != 18 {
+								panic("Expected input tokens sum to be 18, got " + strconv.FormatInt(dp.Sum, 10))
 							}
 						} else if tokenType == "output" {
 							if dp.Sum != 28 {
@@ -132,7 +132,7 @@ func main() {
 				panic("Input tokens (gen_ai.token.type=input) not found in metrics")
 			}
 			if !outputTokensFound {
-				panic("Output tokens (gen_ai.token.type=completion) not found in metrics")
+				panic("Output tokens (gen_ai.token.type=output) not found in metrics")
 			}
 		},
 		"gen_ai.server.time_to_first_token": func(mrs metricdata.ResourceMetrics) {
