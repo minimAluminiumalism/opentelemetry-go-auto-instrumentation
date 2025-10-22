@@ -153,13 +153,16 @@ func BuildOllamaLLMInstrumenter() instrumenter.Instrumenter[ollamaRequest, ollam
 	return builder.Init().
 		SetSpanNameExtractor(&ai.AISpanNameExtractor[ollamaRequest, ollamaResponse]{Getter: getter}).
 		SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[ollamaRequest]{}).
-		AddAttributesExtractor(&ai.AILLMAttrsExtractor[ollamaRequest, ollamaResponse, ollamaAttrsGetter, ollamaAttrsGetter]{}).
-		AddAttributesExtractor(&streamingAttributesExtractor{}).
-		AddAttributesExtractor(&costAttributesExtractor{}).
+		AddAttributesExtractor(
+			&ai.AILLMAttrsExtractor[ollamaRequest, ollamaResponse, ollamaAttrsGetter, ollamaAttrsGetter]{},
+			&streamingAttributesExtractor{},
+			&costAttributesExtractor{},
+		).
 		SetInstrumentationScope(instrumentation.Scope{
 			Name:    OLLAMA_SCOPE_NAME,
 			Version: version.Tag,
 		}).
+		AddOperationListeners(ai.AIClientMetrics("ollama")).
 		BuildInstrumenter()
 }
 
