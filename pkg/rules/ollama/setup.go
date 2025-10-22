@@ -21,6 +21,8 @@ import (
 	"github.com/alibaba/loongsuite-go-agent/pkg/api"
 	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/ai"
 	ollamaapi "github.com/ollama/ollama/api"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 
