@@ -78,6 +78,7 @@ type einoLLMRequest struct {
 	serverAddress    string
 	seed             int64
 	input            []*schema.Message
+	isStreaming      bool
 }
 
 type einoLLMResponse struct {

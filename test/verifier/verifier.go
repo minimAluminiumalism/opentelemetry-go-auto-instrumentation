@@ -159,6 +159,11 @@ func VerifyLLMCommonAttributes(span tracetest.SpanStub, name string, system stri
 	Assert(optName == name, "Except gen_ai.operation.name to be %s, got %s", name, optName)
 	Assert(span.SpanKind == spanKind, "Expect to be %s span, got %d", spanKind, span.SpanKind)
 }
+
+func VerifyLLMStreamingAttribute(span tracetest.SpanStub, isStreaming bool) {
+	actualStreaming := GetAttribute(span.Attributes, "llm.is_streaming").AsBool()
+	Assert(actualStreaming == isStreaming, "Except llm.is_streaming to be %t, got %t", isStreaming, actualStreaming)
+}
 func VerifyMQPublishAttributes(span tracetest.SpanStub, exchange, routing, queue, operationName, destination string, system string) {
 	Assert(span.Name == destination+" "+operationName, "Except client span name to be %s, got %s", destination+" "+string(operationName), span.Name)
 	actualDestination := GetAttribute(span.Attributes, "messaging.destination.name").AsString()

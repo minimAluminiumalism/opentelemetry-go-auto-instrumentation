@@ -106,7 +106,12 @@ func newAIClientOperationDurationMeasures(meter metric.Meter) (metric.Float64His
 	d, err := meter.Float64Histogram(gen_ai_client_operation_duration,
 		metric.WithUnit("s"),
 		metric.WithDescription("Duration of chat completion operation."),
-		metric.WithExplicitBucketBoundaries(0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24, 20.48, 40.96, 81.92),
+		// metric.WithExplicitBucketBoundaries(0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24, 20.48, 40.96, 81.92),
+		// reconstruct the bucket boundaries to make it consistent with the Tencent APM
+		// actually the original bucket boundaries is recommended by the OpenTelemetry spec
+		// https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
+		// it's a tough decision but we have to change it
+		metric.WithExplicitBucketBoundaries(1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864),
 	)
 	if err == nil {
 		return d, nil
@@ -142,7 +147,9 @@ func newAIClientServerTimeToFirstTokenMeasures(meter metric.Meter) (metric.Float
 	d, err := meter.Float64Histogram(gen_ai_server_time_to_first_token,
 		metric.WithUnit("s"),
 		metric.WithDescription("Time to generate first token for successful responses."),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0),
+		// metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0),
+		// actually the original bucket boundaries is recommended by the OpenTelemetry spec
+		metric.WithExplicitBucketBoundaries(0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0, 5000.0, 7500.0, 10000.0),
 	)
 	if err == nil {
 		return d, nil

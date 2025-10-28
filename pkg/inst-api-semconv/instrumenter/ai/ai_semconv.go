@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package ai
 
-import (
-	"context"
+import "go.opentelemetry.io/otel/attribute"
 
-	"github.com/alibaba/loongsuite-go-agent/test/verifier"
-	"github.com/cloudwego/eino/schema"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+// Custom semantic convention attributes for AI/LLM instrumentation
+var (
+	// LLMIsStreamingKey indicates whether the LLM request is a streaming request
+	LLMIsStreamingKey = attribute.Key("llm.is_streaming")
 )
-
-func main() {
-	ctx := context.Background()
-	cm, _ := NewMockOllamaChatModelForStream(ctx)
-	_, err := cm.Stream(ctx, []*schema.Message{schema.UserMessage("Hello")})
-	if err != nil {
-		panic(err)
-	}
-	verifier.WaitAndAssertTraces(func(stubs []tracetest.SpanStubs) {
-		verifier.VerifyLLMAttributes(stubs[0][0], "chat", "eino", "mock-chat")
-		verifier.VerifyLLMStreamingAttribute(stubs[0][0], true)
-	}, 1)
-}

@@ -114,7 +114,10 @@ func BuildEinoCommonInstrumenter() instrumenter.Instrumenter[einoRequest, einoRe
 	builder := instrumenter.Builder[einoRequest, einoResponse]{}
 	return builder.Init().SetSpanNameExtractor(&ai.AISpanNameExtractor[einoRequest, einoResponse]{Getter: einoCommonAttrsGetter{}}).
 		SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[einoRequest]{}).
-		AddAttributesExtractor(&LExperimentalAttributeExtractor{}).
+		AddAttributesExtractor(
+			&ai.LLMEntryAttributeExtractor[einoRequest, einoResponse]{},
+			&LExperimentalAttributeExtractor{},
+		).
 		SetInstrumentationScope(instrumentation.Scope{
 			Name:    utils.EINO_SCOPE_NAME,
 			Version: version.Tag,

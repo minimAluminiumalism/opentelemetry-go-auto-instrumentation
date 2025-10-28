@@ -92,6 +92,7 @@ func einoModelCallHandler(config ChatModelConfig) *callbacksutils.ModelCallbackH
 		},
 		OnEndWithStreamOutput: func(ctx context.Context, runInfo *callbacks.RunInfo, output *schema.StreamReader[*model.CallbackOutput]) context.Context {
 			request := ctx.Value(llmRequestKey{}).(einoLLMRequest)
+			request.isStreaming = true
 			response := einoLLMResponse{}
 			go func() {
 				defer func() {

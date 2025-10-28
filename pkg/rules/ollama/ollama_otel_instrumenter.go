@@ -144,9 +144,12 @@ func BuildOllamaLLMInstrumenter() instrumenter.Instrumenter[ollamaRequest, ollam
 	return builder.Init().
 		SetSpanNameExtractor(&ai.AISpanNameExtractor[ollamaRequest, ollamaResponse]{Getter: getter}).
 		SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[ollamaRequest]{}).
-		AddAttributesExtractor(&ai.AILLMAttrsExtractor[ollamaRequest, ollamaResponse, ollamaAttrsGetter, ollamaAttrsGetter]{}).
-		AddAttributesExtractor(&streamingAttributesExtractor{}).
-		AddAttributesExtractor(&costAttributesExtractor{}).
+		AddAttributesExtractor(
+			&ai.LLMEntryAttributeExtractor[ollamaRequest, ollamaResponse]{},
+			&ai.AILLMAttrsExtractor[ollamaRequest, ollamaResponse, ollamaAttrsGetter, ollamaAttrsGetter]{},
+			&streamingAttributesExtractor{},
+			&costAttributesExtractor{},
+		).
 		AddAttributesExtractor(&embeddingAttributesExtractor{}).
 		AddAttributesExtractor(&modelOperationAttributesExtractor{}).
 		AddAttributesExtractor(&sloAttributesExtractor{}).
@@ -217,7 +220,7 @@ func (c *costAttributesExtractor) OnEnd(attributes []attribute.KeyValue, context
 			attributes = append(attributes, attribute.Bool("gen_ai.cost.input_estimated", true))
 		}
 	}
-	
+
 	return attributes, context
 }
 

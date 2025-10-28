@@ -126,6 +126,11 @@ func (l LLMExperimentalAttributeExtractor) OnEnd(attributes []attribute.KeyValue
 	}, attribute.String("gen_ai.completion.0.content", response.output),
 		attribute.Int64("gen_ai.usage.total_tokens", response.usageTotalTokens))
 
+	// Add streaming attribute if it's a streaming request
+	if request.isStreaming {
+		attributes = append(attributes, ai.LLMIsStreamingKey.Bool(true))
+	}
+
 	return attributes, ctx
 }
 
@@ -189,7 +194,10 @@ func BuildEinoLLMInstrumenter() instrumenter.Instrumenter[einoLLMRequest, einoLL
 	builder := instrumenter.Builder[einoLLMRequest, einoLLMResponse]{}
 	return builder.Init().SetSpanNameExtractor(&ai.AISpanNameExtractor[einoLLMRequest, einoLLMResponse]{Getter: einoLLMAttrsGetter{}}).
 		SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[einoLLMRequest]{}).
-		AddAttributesExtractor(&LLMExperimentalAttributeExtractor{}).
+		AddAttributesExtractor(
+			&ai.LLMEntryAttributeExtractor[einoLLMRequest, einoLLMResponse]{},
+			&LLMExperimentalAttributeExtractor{},
+		).
 		SetInstrumentationScope(instrumentation.Scope{
 			Name:    utils.EINO_SCOPE_NAME,
 			Version: version.Tag,
