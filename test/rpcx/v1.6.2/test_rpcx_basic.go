@@ -15,23 +15,22 @@
 package main
 
 import (
-	"context"
+	"time"
+
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/alibaba/loongsuite-go-agent/test/verifier"
-	"github.com/ollama/ollama/api"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func main() {
-	ctx := context.Background()
-	client, server := NewMockOllamaGenerateForInvoke(ctx)
-	defer server.Close()
-	streamFlag := false
-	req := &api.GenerateRequest{Model: "llama3:8b", Prompt: "Test SLO", Stream: &streamFlag}
-	_ = client.Generate(ctx, req, func(resp api.GenerateResponse) error { return nil })
-	_ = client.Generate(ctx, req, func(resp api.GenerateResponse) error { return nil })
-	_ = client.Generate(ctx, req, func(resp api.GenerateResponse) error { return nil })
+	go setupTrpcServer()
+	time.Sleep(1 * time.Second)
+	// send req to server
+	clientSendReq()
+
+	// verify trace
 	verifier.WaitAndAssertTraces(func(stubs []tracetest.SpanStubs) {
-		verifier.VerifyLLMAttributes(stubs[0][0], "generate", "ollama", "llama3:8b")
-	}, 3)
+		verifier.VerifyRpcClientAttributes(stubs[0][0], "Arith/Mul", "rpcx", "Arith", "Mul")
+		verifier.VerifyRpcServerAttributes(stubs[0][1], "Arith/Mul", "rpcx", "Arith", "Mul")
+	}, 1)
 }
