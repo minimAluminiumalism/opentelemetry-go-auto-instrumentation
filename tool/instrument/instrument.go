@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/alibaba/loongsuite-go-agent/tool/ast"
-	"github.com/alibaba/loongsuite-go-agent/tool/config"
 	"github.com/alibaba/loongsuite-go-agent/tool/ex"
 	"github.com/alibaba/loongsuite-go-agent/tool/rules"
 	"github.com/alibaba/loongsuite-go-agent/tool/util"
@@ -62,26 +61,6 @@ type RuleProcessor struct {
 	callCtxDecl *dst.GenDecl
 	// The methods of the call context
 	callCtxMethods []*dst.FuncDecl
-}
-
-func newRuleProcessor(args []string, pkgName string) *RuleProcessor {
-	// Read compilation output directory
-	var outputDir string
-	for i, v := range args {
-		if v == "-o" {
-			outputDir = filepath.Dir(args[i+1])
-			break
-		}
-	}
-	util.Assert(outputDir != "", "sanity check")
-	// Create a new rule processor
-	rp := &RuleProcessor{
-		workDir:     outputDir,
-		target:      nil,
-		compileArgs: args,
-		relocated:   make(map[string]string),
-	}
-	return rp
 }
 
 func (rp *RuleProcessor) addDecl(decl dst.Decl) {
@@ -183,7 +162,7 @@ func groupRules(rset *rules.InstRuleSet) map[string][]rules.InstRule {
 	return file2rules
 }
 
-func (rp *RuleProcessor) applyRules(rset *rules.InstRuleSet) (err error) {
+func (rp *RuleProcessor) instrument(rset *rules.InstRuleSet) (err error) {
 	hasFuncRule := false
 	// Apply file rules first because they can introduce new files that used
 	// by other rules such as raw rules
@@ -240,15 +219,6 @@ func (rp *RuleProcessor) applyRules(rset *rules.InstRuleSet) (err error) {
 	return nil
 }
 
-func matchImportPath(importPath string, args []string) bool {
-	for _, arg := range args {
-		if arg == importPath {
-			return true
-		}
-	}
-	return false
-}
-
 func stripCompleteFlag(args []string) []string {
 	for i, arg := range args {
 		if arg == "-complete" {
@@ -258,49 +228,62 @@ func stripCompleteFlag(args []string) []string {
 	return args
 }
 
-func compileRemix(bundle *rules.InstRuleSet, args []string) error {
-	rp := newRuleProcessor(args, bundle.PackageName)
-	err := rp.applyRules(bundle)
-	if err != nil {
-		return err
-	}
-	// Strip -complete flag as we may insert some hook points that are not ready
-	// yet, i.e. they don't have function body
-	rp.compileArgs = stripCompleteFlag(rp.compileArgs)
-
-	// Good, run final compilation after instrumentation
-	err = util.RunCmd(rp.compileArgs...)
-	if err != nil {
-		return err
+func (rp *RuleProcessor) match(allSet []*rules.InstRuleSet, args []string) *rules.InstRuleSet {
+	// One package can only be matched with one rule set, so it's safe to return
+	// the first matched rule set.
+	importPath := util.FindFlagValue(args, "-p")
+	util.Assert(importPath != "", "sanity check")
+	for _, rset := range allSet {
+		if rset.ImportPath == importPath {
+			return rset
+		}
 	}
 	return nil
 }
 
-func Instrument() error {
+func interceptCompile(args []string) ([]string, error) {
+	util.Assert(util.IsCompileCommand(strings.Join(args, " ")), "sanity check")
+	target := util.FindFlagValue(args, "-o")
+	util.Assert(target != "", "missing -o flag value")
+	// Read compilation output directory
+	rp := &RuleProcessor{
+		workDir:     filepath.Dir(target),
+		target:      nil,
+		compileArgs: args,
+		relocated:   make(map[string]string),
+	}
+
+	bundles, err := rules.LoadRuleBundles()
+	if err != nil {
+		return nil, err
+	}
+	matched := rp.match(bundles, args)
+	if matched.IsValid() {
+		err := rp.instrument(matched)
+		if err != nil {
+			return nil, err
+		}
+
+		// Strip -complete flag as we may insert some hook points that are
+		// not ready yet, i.e. they don't have function body
+		rp.compileArgs = stripCompleteFlag(rp.compileArgs)
+		util.Log("Run instrumented command", "args", rp.compileArgs)
+	}
+
+	return rp.compileArgs, nil
+}
+
+func Toolexec() error {
 	// Remove the tool itself from the command line arguments
 	args := os.Args[2:]
 	// Is compile command?
 	if util.IsCompileCommand(strings.Join(args, " ")) {
-		if config.GetConf().Verbose {
-			util.Log("RunCmd: %v", args)
-		}
-		bundles, err := rules.LoadRuleBundles()
+		var err error
+		args, err = interceptCompile(args)
 		if err != nil {
 			return err
 		}
-		for _, bundle := range bundles {
-			util.Assert(bundle.IsValid(), "sanity check")
-			// Is compiling the target package?
-			if matchImportPath(bundle.ImportPath, args) {
-				util.Log("Apply bundle %v", bundle)
-				err = compileRemix(bundle, args)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-		}
 	}
-	// Not a compile command, just run it as is
+	// Just run the command as is
 	return util.RunCmd(args...)
 }
