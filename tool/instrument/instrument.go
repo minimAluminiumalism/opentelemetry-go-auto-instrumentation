@@ -228,19 +228,6 @@ func stripCompleteFlag(args []string) []string {
 	return args
 }
 
-func (rp *RuleProcessor) match(allSet []*rules.InstRuleSet, args []string) *rules.InstRuleSet {
-	// One package can only be matched with one rule set, so it's safe to return
-	// the first matched rule set.
-	importPath := util.FindFlagValue(args, "-p")
-	util.Assert(importPath != "", "sanity check")
-	for _, rset := range allSet {
-		if rset.ImportPath == importPath {
-			return rset
-		}
-	}
-	return nil
-}
-
 func interceptCompile(args []string) ([]string, error) {
 	util.Assert(util.IsCompileCommand(strings.Join(args, " ")), "sanity check")
 	target := util.FindFlagValue(args, "-o")
@@ -253,12 +240,16 @@ func interceptCompile(args []string) ([]string, error) {
 		relocated:   make(map[string]string),
 	}
 
-	bundles, err := rules.LoadRuleBundles()
+	// Load matched hook rules from setup phase
+	bundles, err := rp.load()
 	if err != nil {
 		return nil, err
 	}
+
+	// Check if the current compile command matches the rules.
 	matched := rp.match(bundles, args)
 	if matched.IsValid() {
+		util.Log("Instrument package %v with %v", matched, args)
 		err := rp.instrument(matched)
 		if err != nil {
 			return nil, err

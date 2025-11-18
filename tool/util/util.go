@@ -60,14 +60,6 @@ func InInstrument() bool {
 	return rp == PInstrument
 }
 
-func GuaranteeInPreprocess() {
-	Assert(rp == PPreprocess, "not in preprocess stage")
-}
-
-func GuaranteeInInstrument() {
-	Assert(rp == PInstrument, "not in instrument stage")
-}
-
 func Assert(cond bool, format string, args ...interface{}) {
 	if !cond {
 		panic(fmt.Sprintf(format, args...))

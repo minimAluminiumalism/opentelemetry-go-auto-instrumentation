@@ -72,6 +72,11 @@ func IsCompileCommand(line string) bool {
 	return true
 }
 
+func GetMatchedRuleFile() string {
+	const matchedRuleFile = "matched.json"
+	return GetTempBuildDirWith(matchedRuleFile)
+}
+
 func GetTempBuildDir() string {
 	return filepath.Join(TempBuildDir, GetRunPhase().String())
 }

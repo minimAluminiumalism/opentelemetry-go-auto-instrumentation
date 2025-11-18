@@ -216,7 +216,6 @@ func findPkgModDir() (string, error) {
 
 // updateRule rectifies the file rules path to the local module cache path.
 func (dp *DepProcessor) updateRule(bundles []*rules.InstRuleSet) error {
-	util.GuaranteeInPreprocess()
 	defer util.PhaseTimer("Fetch")()
 	modfile, err := parseGoMod(dp.getGoModPath())
 	if err != nil {

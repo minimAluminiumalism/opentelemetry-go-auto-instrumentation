@@ -209,8 +209,6 @@ func loadDefaultRules() []rules.InstRule {
 }
 
 func findAvailableRules() []rules.InstRule {
-	util.GuaranteeInPreprocess()
-
 	rules := make([]rules.InstRule, 0)
 
 	// Load default rules (filtering is handled inside loadDefaultRules)
