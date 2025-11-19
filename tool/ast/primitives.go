@@ -233,3 +233,28 @@ func NewVarDecl(name string, paramTypes *dst.FieldList) *dst.GenDecl {
 func DereferenceOf(expr dst.Expr) dst.Expr {
 	return &dst.StarExpr{X: expr}
 }
+
+func KeyValueExpr(key string, value dst.Expr) *dst.KeyValueExpr {
+	return &dst.KeyValueExpr{
+		Key:   Ident(key),
+		Value: value,
+	}
+}
+
+func CompositeLit(t dst.Expr, elts []dst.Expr) *dst.CompositeLit {
+	return &dst.CompositeLit{
+		Type: t,
+		Elts: elts,
+	}
+}
+
+func StructLit(typeName string, fields ...*dst.KeyValueExpr) dst.Expr {
+	exprs := make([]dst.Expr, len(fields))
+	for i, field := range fields {
+		exprs[i] = field
+	}
+	return &dst.UnaryExpr{
+		Op: token.AND,
+		X:  CompositeLit(Ident(typeName), exprs),
+	}
+}

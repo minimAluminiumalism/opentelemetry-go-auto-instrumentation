@@ -491,8 +491,8 @@ func assignSliceLiteral(assignStmt *dst.AssignStmt, vals []dst.Expr) bool {
 	return false
 }
 
-// replenishCallContext replenishes the call context before hook invocation
-func (rp *RuleProcessor) replenishCallContext(onEnter bool) bool {
+// populateCallContext replenishes the call context before hook invocation
+func (rp *RuleProcessor) populateCallContext(onEnter bool) bool {
 	funcDecl := rp.onEnterHookFunc
 	if !onEnter {
 		funcDecl = rp.onExitHookFunc
@@ -720,7 +720,7 @@ func (rp *RuleProcessor) callHookFunc(t *rules.InstFuncRule,
 	if err != nil {
 		return err
 	}
-	if !rp.replenishCallContext(onEnter) {
+	if !rp.populateCallContext(onEnter) {
 		return err
 	}
 	return nil

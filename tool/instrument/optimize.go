@@ -15,7 +15,6 @@
 package instrument
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/alibaba/loongsuite-go-agent/tool/ast"
@@ -128,54 +127,44 @@ func (rp *RuleProcessor) removeOnExitTrampolineCall(tjump *TJump) error {
 	return nil
 }
 
-func replenishCallContextLiteral(tjump *TJump, expr dst.Expr) {
-	rawFunc := tjump.target
-	// Replenish call context literal with addresses of all arguments
-	names := make([]dst.Expr, 0)
-	for _, name := range getNames(rawFunc.Type.Params) {
-		names = append(names, ast.AddressOf(name))
-	}
-	elems := expr.(*dst.UnaryExpr).X.(*dst.CompositeLit).Elts
-	paramLiteral := elems[0].(*dst.KeyValueExpr).Value.(*dst.CompositeLit)
-	paramLiteral.Elts = names
-	// Replenish return values literal with addresses of all return values
-	if rawFunc.Type.Results != nil {
-		rets := make([]dst.Expr, 0)
-		for _, name := range getNames(rawFunc.Type.Results) {
-			rets = append(rets, ast.AddressOf(name))
-		}
-		elems = expr.(*dst.UnaryExpr).X.(*dst.CompositeLit).Elts
-		returnLiteral := elems[1].(*dst.KeyValueExpr).Value.(*dst.CompositeLit)
-		returnLiteral.Elts = rets
-	}
-}
-
 // newCallContextImpl constructs a new CallContextImpl structure literal and
 // replenishes its Params && ReturnValues field with addresses of all arguments.
 // The CallContextImpl structure is used to pass arguments to the exit trampoline
-func (rp *RuleProcessor) newCallContextImpl(tjump *TJump) (dst.Expr, error) {
-	// TODO: This generated structure construction can also be marked via line
-	// directive
-	// One line please, otherwise debugging line number will be a nightmare
-	tmpl := fmt.Sprintf("&CallContextImpl%s{Params:[]interface{}{},ReturnVals:[]interface{}{}}",
-		util.Crc32(tjump.rule.String()))
-	p := ast.NewAstParser()
-	astRoot, err := p.ParseSnippet(tmpl)
-	if err != nil {
-		return nil, err
+func newCallContextImpl(tjump *TJump) dst.Expr {
+	targetFunc := tjump.target
+	structName := TrampolineCallContextImplType + util.Crc32(tjump.rule.String())
+
+	// Build params slice: []interface{}{&param1, &param2, ...}
+	// Use createHookArgs to handle underscore parameters correctly
+	paramNames := getNames(targetFunc.Type.Params)
+	paramExprs := createHookArgs(paramNames)
+	paramsSlice := ast.CompositeLit(
+		ast.ArrayType(ast.InterfaceType()),
+		paramExprs,
+	)
+
+	// Build returnVals slice: []interface{}{&retval1, &retval2, ...}
+	returnExprs := make([]dst.Expr, 0)
+	if targetFunc.Type.Results != nil {
+		returnNames := getNames(targetFunc.Type.Results)
+		returnExprs = createHookArgs(returnNames)
 	}
-	ctxExpr := astRoot[0].(*dst.ExprStmt).X
-	// Replenish call context by passing addresses of all arguments
-	replenishCallContextLiteral(tjump, ctxExpr)
-	return ctxExpr, nil
+	returnValsSlice := ast.CompositeLit(
+		ast.ArrayType(ast.InterfaceType()),
+		returnExprs,
+	)
+
+	// Build the struct literal: &HookContextImpl{params:..., returnVals:...}
+	return ast.StructLit(
+		structName,
+		ast.KeyValueExpr(TrampolineParamsIdentifier, paramsSlice),
+		ast.KeyValueExpr(TrampolineReturnValsIdentifier, returnValsSlice),
+	)
 }
 
 func (rp *RuleProcessor) removeOnEnterTrampolineCall(tjump *TJump) error {
 	// Construct CallContext on the fly and pass to onExit trampoline defer call
-	callContextExpr, err := rp.newCallContextImpl(tjump)
-	if err != nil {
-		return err
-	}
+	callContextExpr := newCallContextImpl(tjump)
 	// Find defer call to onExit and replace its call context with new one
 	found := false
 	for _, stmt := range tjump.ifStmt.Else.(*dst.BlockStmt).List {
