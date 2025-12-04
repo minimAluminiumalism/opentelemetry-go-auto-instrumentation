@@ -121,7 +121,7 @@ func (rp *RuleProcessor) removeOnExitTrampolineCall(tjump *TJump) error {
 			// Expected statement type and do nothing
 		} else {
 			// Unexpected statement type
-			util.ShouldNotReachHereT("unexpected statement type")
+			util.ShouldNotReachHere()
 		}
 	}
 	return nil

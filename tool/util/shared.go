@@ -46,10 +46,10 @@ func AssertGoBuild(args []string) {
 		Assert(false, "empty go build command")
 	}
 	if !strings.Contains(args[0], "go") {
-		Assert(false, "invalid go build command %v", args)
+		Assert(false, fmt.Sprintf("invalid go build command %v", args))
 	}
 	if args[1] != "build" && args[1] != "install" {
-		Assert(false, "invalid go build command %v", args)
+		Assert(false, fmt.Sprintf("invalid go build command %v", args))
 	}
 }
 

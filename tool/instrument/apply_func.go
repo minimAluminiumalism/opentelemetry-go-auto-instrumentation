@@ -128,7 +128,7 @@ func collectArguments(funcDecl *dst.FuncDecl) []string {
 			receiver := recv[0].Names[0].Name
 			args = append(args, receiver)
 		} else {
-			util.Unimplemented()
+			util.Unimplemented("collectArguments: no receiver")
 		}
 	}
 	// Original function arguments as arguments for trampoline func

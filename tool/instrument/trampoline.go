@@ -188,7 +188,7 @@ func listRuleFiles(rule rules.InstRule) ([]string, error) {
 	case *rules.InstFuncRule, *rules.InstFileRule:
 		return files, nil
 	case *rules.InstStructRule:
-		util.ShouldNotReachHereT("insane rule type")
+		util.ShouldNotReachHere()
 	}
 	return nil, nil
 }

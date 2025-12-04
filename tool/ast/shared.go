@@ -189,7 +189,7 @@ func FindFuncDecl(root *dst.File, function string, receiverType string) []*dst.F
 				continue
 			default:
 				msg := fmt.Sprintf("unexpected receiver type: %T", recvTypeExpr)
-				util.UnimplementedT(msg)
+				util.Unimplemented(msg)
 			}
 		}
 		return filtered

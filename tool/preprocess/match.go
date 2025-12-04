@@ -472,7 +472,7 @@ func (rm *ruleMatcher) match(cmdArgs []string) *rules.InstRuleSet {
 				bundle.SetPackageName(tree.Name.Name)
 				valid = true
 			default:
-				util.ShouldNotReachHereT("invalid rule type")
+				util.ShouldNotReachHere()
 			}
 			if valid {
 				// Remove the rule from the available rules
