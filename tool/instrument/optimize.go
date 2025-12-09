@@ -136,7 +136,7 @@ func newCallContextImpl(tjump *TJump) dst.Expr {
 
 	// Build params slice: []interface{}{&param1, &param2, ...}
 	// Use createHookArgs to handle underscore parameters correctly
-	paramNames := getNames(targetFunc.Type.Params)
+	paramNames := collectArguments(targetFunc)
 	paramExprs := createHookArgs(paramNames)
 	paramsSlice := ast.CompositeLit(
 		ast.ArrayType(ast.InterfaceType()),
@@ -146,7 +146,7 @@ func newCallContextImpl(tjump *TJump) dst.Expr {
 	// Build returnVals slice: []interface{}{&retval1, &retval2, ...}
 	returnExprs := make([]dst.Expr, 0)
 	if targetFunc.Type.Results != nil {
-		returnNames := getNames(targetFunc.Type.Results)
+		returnNames := collectReturnValues(targetFunc)
 		returnExprs = createHookArgs(returnNames)
 	}
 	returnValsSlice := ast.CompositeLit(
