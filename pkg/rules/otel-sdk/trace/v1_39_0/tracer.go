@@ -21,11 +21,11 @@ package trace_context // import "go.opentelemetry.io/otel/sdk/trace"
 
 import (
 	"context"
-	"time"
-
 	"go.opentelemetry.io/otel/sdk/instrumentation"
+	"go.opentelemetry.io/otel/sdk/trace/internal/observ"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/embedded"
+	"time"
 )
 
 type tracer struct {
@@ -33,6 +33,8 @@ type tracer struct {
 
 	provider             *TracerProvider
 	instrumentationScope instrumentation.Scope
+
+	inst observ.Tracer
 }
 
 var _ trace.Tracer = &tracer{}

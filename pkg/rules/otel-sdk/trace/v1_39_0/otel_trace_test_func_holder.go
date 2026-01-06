@@ -12,24 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package v1_39_0
 
-import (
-	"context"
-
-	"github.com/alibaba/loongsuite-go-agent/test/verifier"
-	"github.com/cloudwego/eino/schema"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-)
-
-func main() {
-	ctx := context.Background()
-	cm, _ := NewMockOpenAIChatModelForInvoke(ctx)
-	_, err := cm.Generate(ctx, []*schema.Message{schema.UserMessage("Hello")})
-	if err != nil {
-		panic(err)
-	}
-	verifier.WaitAndAssertTraces(func(stubs []tracetest.SpanStubs) {
-		verifier.VerifyLLMAttributes(stubs[0][0], "chat", "eino", "mock-chat")
-	}, 1)
-}
+var GetTestSpans func() interface{}
+var ResetTestSpans func()
