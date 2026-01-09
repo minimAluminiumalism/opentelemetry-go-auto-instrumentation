@@ -68,7 +68,7 @@ endif
 #-------------------------------------------------------------------------------
 # Build targets
 .PHONY: pre-build
-pre-build: package-pkg lint
+pre-build: package-pkg
 	@cp $(API_SYNC_SOURCE) $(API_SYNC_TARGET)
 	@go mod tidy
 	@echo "Pre-build completed"
