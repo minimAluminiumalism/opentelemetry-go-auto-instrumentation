@@ -25,6 +25,12 @@ func (aiLLMRequest) GetAISystem(request langChainLLMRequest) string {
 	s := strings.Split(request.moduleName, ":")
 	return s[0]
 }
+func (aiLLMRequest) GetGenAISpanKind(request langChainLLMRequest) ai.GenAISpanKind {
+	if request.spanKind == "" {
+		return ai.GenAISpanKindGeneration
+	}
+	return request.spanKind
+}
 func (aiLLMRequest) GetAIRequestModel(request langChainLLMRequest) string {
 	return request.moduleName
 }
@@ -91,6 +97,7 @@ func BuildLangchainLLMOtelInstrumenter() instrumenter.Instrumenter[langChainLLMR
 	return builder.Init().SetSpanNameExtractor(&ai.AISpanNameExtractor[langChainLLMRequest, langChainLLMResponse]{Getter: aiLLMRequest{}}).
 		SetSpanKindExtractor(&instrumenter.AlwaysClientExtractor[langChainLLMRequest]{}).
 		AddAttributesExtractor(&ai.AILLMAttrsExtractor[langChainLLMRequest, langChainLLMResponse, aiLLMRequest, aiLLMRequest]{}).
+		AddAttributesExtractor(&ai.GenAISpanKindAttrsExtractor[langChainLLMRequest, langChainLLMResponse, aiLLMRequest]{Getter: aiLLMRequest{}}).
 		SetInstrumentationScope(instrumentation.Scope{
 			Name:    utils.LANGCHAIN_SCOPE_NAME,
 			Version: version.Tag,

@@ -80,6 +80,8 @@ func extractOptionsFromMap(opts map[string]interface{}) (
 			topK = v
 		case int:
 			topK = float64(v)
+		case int64:
+			topK = float64(v)
 		}
 	}
 

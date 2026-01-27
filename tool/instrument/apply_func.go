@@ -122,11 +122,18 @@ func collectReturnValues(funcDecl *dst.FuncDecl) []string {
 func collectArguments(funcDecl *dst.FuncDecl) []string {
 	// Arguments for onEnter trampoline
 	args := make([]string, 0)
+	argIdx := 0
 	// Receiver as argument for trampoline func, if any
 	if ast.HasReceiver(funcDecl) {
 		if recv := funcDecl.Recv.List; recv != nil {
 			receiver := recv[0].Names[0].Name
+			// Rename "_" receiver to a valid identifier so we can take its address
+			if receiver == ast.IdentIgnore {
+				receiver = fmt.Sprintf("_otel_recv_%d", argIdx)
+				recv[0].Names[0].Name = receiver
+			}
 			args = append(args, receiver)
+			argIdx++
 		} else {
 			util.Unimplemented("collectArguments: no receiver")
 		}
@@ -134,7 +141,13 @@ func collectArguments(funcDecl *dst.FuncDecl) []string {
 	// Original function arguments as arguments for trampoline func
 	for _, field := range funcDecl.Type.Params.List {
 		for _, name := range field.Names {
-			args = append(args, name.Name)
+			argName := name.Name
+			if argName == ast.IdentIgnore {
+				argName = fmt.Sprintf("_otel_arg_%d", argIdx)
+				name.Name = argName
+			}
+			args = append(args, argName)
+			argIdx++
 		}
 	}
 	return args

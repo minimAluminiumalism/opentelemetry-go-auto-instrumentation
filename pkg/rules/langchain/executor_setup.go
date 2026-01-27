@@ -20,20 +20,27 @@ import (
 
 	"github.com/alibaba/loongsuite-go-agent/pkg/api"
 	"github.com/alibaba/loongsuite-go-agent/pkg/inst-api-semconv/instrumenter/ai"
-	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/agents"
+	"github.com/tmc/langchaingo/chains"
 )
 
-//go:linkname generateFromSinglePromptOnEnter github.com/tmc/langchaingo/llms.generateFromSinglePromptOnEnter
-func generateFromSinglePromptOnEnter(call api.CallContext,
+// Executor.Call - Agent execution entry point
+//
+//go:linkname executorCallOnEnter github.com/tmc/langchaingo/agents.executorCallOnEnter
+func executorCallOnEnter(call api.CallContext,
+	e *agents.Executor,
 	ctx context.Context,
-	llm llms.Model,
-	prompt string,
-	options ...llms.CallOption,
+	inputValues map[string]any,
+	options ...chains.ChainCallOption,
 ) {
+	if !langChainEnabler.Enable() {
+		return
+	}
 	request := langChainRequest{
-		operationName: MLlmGenerateSingle,
+		operationName: MAgentExecutor,
 		system:        "langchain",
-		spanKind:      ai.GenAISpanKindGeneration,
+		spanKind:      ai.GenAISpanKindAgent,
+		input:         inputValues,
 	}
 	langCtx := langChainCommonInstrument.Start(ctx, request)
 	data := make(map[string]interface{})
@@ -41,16 +48,27 @@ func generateFromSinglePromptOnEnter(call api.CallContext,
 	call.SetData(data)
 }
 
-//go:linkname generateFromSinglePromptOnExit github.com/tmc/langchaingo/llms.generateFromSinglePromptOnExit
-func generateFromSinglePromptOnExit(call api.CallContext, v string, err error) {
-	data := call.GetData().(map[string]interface{})
-	request := langChainRequest{
-		operationName: MLlmGenerateSingle,
-		system:        "langchain",
+//go:linkname executorCallOnExit github.com/tmc/langchaingo/agents.executorCallOnExit
+func executorCallOnExit(call api.CallContext, result map[string]any, err error) {
+	if !langChainEnabler.Enable() {
+		return
+	}
+	dataRaw := call.GetData()
+	if dataRaw == nil {
+		return
+	}
+	data, ok := dataRaw.(map[string]interface{})
+	if !ok {
+		return
 	}
 	ctx, ok := data["ctx"].(context.Context)
 	if !ok {
 		return
+	}
+	request := langChainRequest{
+		operationName: MAgentExecutor,
+		system:        "langchain",
+		output:        result,
 	}
 	langChainCommonInstrument.End(ctx, request, nil, err)
 }

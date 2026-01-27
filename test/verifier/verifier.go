@@ -159,6 +159,12 @@ func VerifyLLMCommonAttributes(span tracetest.SpanStub, name string, system stri
 	Assert(optName == name, "Except gen_ai.operation.name to be %s, got %s", name, optName)
 	Assert(span.SpanKind == spanKind, "Expect to be %s span, got %d", spanKind, span.SpanKind)
 }
+
+func VerifyLLMCommonAttributesWithGenAISpanKind(span tracetest.SpanStub, name string, system string, spanKind trace.SpanKind, genaiSpanKind string) {
+	VerifyLLMCommonAttributes(span, name, system, spanKind)
+	actualGenAISpanKind := GetAttribute(span.Attributes, "gen_ai.span.kind").AsString()
+	Assert(actualGenAISpanKind == genaiSpanKind, "Except gen_ai.span.kind to be %s, got %s", genaiSpanKind, actualGenAISpanKind)
+}
 func VerifyMQPublishAttributes(span tracetest.SpanStub, exchange, routing, queue, operationName, destination string, system string) {
 	Assert(span.Name == destination+" "+operationName, "Except client span name to be %s, got %s", destination+" "+string(operationName), span.Name)
 	actualDestination := GetAttribute(span.Attributes, "messaging.destination.name").AsString()
