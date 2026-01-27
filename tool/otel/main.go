@@ -129,7 +129,7 @@ func main() {
 	case SubcommandGo:
 		err = preprocess.Preprocess()
 	case SubcommandRemix:
-		err = instrument.Instrument()
+		err = instrument.Toolexec()
 	default:
 		printUsage()
 	}

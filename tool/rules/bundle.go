@@ -16,13 +16,6 @@ package rules
 
 import (
 	"encoding/json"
-
-	"github.com/alibaba/loongsuite-go-agent/tool/ex"
-	"github.com/alibaba/loongsuite-go-agent/tool/util"
-)
-
-const (
-	MatchedRulesJsonFile = "matched_rules.json"
 )
 
 // InstRuleSet is a collection of rules that matched with one compilation action
@@ -32,6 +25,7 @@ type InstRuleSet struct {
 	FileRules   []*InstFileRule
 	FuncRules   map[string][]*InstFuncRule
 	StructRules map[string][]*InstStructRule
+	HasCgo      bool
 }
 
 func NewInstRuleSet(importPath string) *InstRuleSet {
@@ -41,6 +35,7 @@ func NewInstRuleSet(importPath string) *InstRuleSet {
 		FileRules:   make([]*InstFileRule, 0),
 		FuncRules:   make(map[string][]*InstFuncRule),
 		StructRules: make(map[string][]*InstStructRule),
+		HasCgo:      false,
 	}
 }
 
@@ -80,34 +75,4 @@ func (rb *InstRuleSet) SetPackageName(name string) {
 
 func (rb *InstRuleSet) AddFileRule(rule *InstFileRule) {
 	rb.FileRules = append(rb.FileRules, rule)
-}
-
-func StoreRuleBundles(bundles []*InstRuleSet) error {
-	util.GuaranteeInPreprocess()
-	ruleFile := util.GetPreprocessLogPath(MatchedRulesJsonFile)
-	bs, err := json.Marshal(bundles)
-	if err != nil {
-		return ex.Wrap(err)
-	}
-	_, err = util.WriteFile(ruleFile, string(bs))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func LoadRuleBundles() ([]*InstRuleSet, error) {
-	util.GuaranteeInInstrument()
-
-	ruleFile := util.GetPreprocessLogPath(MatchedRulesJsonFile)
-	data, err := util.ReadFile(ruleFile)
-	if err != nil {
-		return nil, err
-	}
-	var bundles []*InstRuleSet
-	err = json.Unmarshal([]byte(data), &bundles)
-	if err != nil {
-		return nil, ex.Wrapf(err, "bad "+ruleFile)
-	}
-	return bundles, nil
 }

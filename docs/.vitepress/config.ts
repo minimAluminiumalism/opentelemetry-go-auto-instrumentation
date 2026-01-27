@@ -58,6 +58,7 @@ export default {
                     { text: 'Manual Instrumentation', link: '/user/manual-instrument' },
                     { text: 'Context Propagation', link: '/user/context-propagation' },
                     { text: 'OpenTelemetry Settings', link: '/user/sdk-config' },
+                    { text: 'Supported Libraries', link: '/user/supported-libraries' },
                   ]
                 },
                 {
@@ -100,6 +101,7 @@ export default {
                     { text: '手动埋点', link: '/zh/user/manual-instrument' },
                     { text: '上下文传播', link: '/zh/user/context-propagation' },
                     { text: 'OpenTelemetry 配置', link: '/zh/user/sdk-config' },
+                    { text: '支持的库', link: '/zh/user/supported-libraries' },
                   ]
                 },
                 {

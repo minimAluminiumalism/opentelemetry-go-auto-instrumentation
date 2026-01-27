@@ -91,8 +91,6 @@ func runCmdCombinedOutput(dir string, env []string, args ...string) (string, err
 }
 
 func (dp *DepProcessor) postProcess() {
-	util.GuaranteeInPreprocess()
-
 	// Using -debug? Leave all changes for debugging
 	if config.GetConf().Debug {
 		return
@@ -104,7 +102,6 @@ func (dp *DepProcessor) postProcess() {
 }
 
 func (dp *DepProcessor) backupFile(origin string) error {
-	util.GuaranteeInPreprocess()
 	backup := filepath.Base(origin) + OtelBackupSuffix
 	backup = util.GetLogPath(filepath.Join(OtelBackups, backup))
 	err := os.MkdirAll(filepath.Dir(backup), 0777)
@@ -125,7 +122,6 @@ func (dp *DepProcessor) backupFile(origin string) error {
 }
 
 func (dp *DepProcessor) restoreBackupFiles() error {
-	util.GuaranteeInPreprocess()
 	for origin, backup := range dp.backups {
 		err := util.CopyFile(backup, origin)
 		if err != nil {
@@ -308,7 +304,7 @@ func Preprocess() error {
 		}
 
 		// From this point on, we no longer modify the rules
-		err = rules.StoreRuleBundles(bundles)
+		err = dp.store(bundles)
 		if err != nil {
 			return err
 		}

@@ -16,7 +16,6 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
@@ -58,36 +57,6 @@ func InPreprocess() bool {
 
 func InInstrument() bool {
 	return rp == PInstrument
-}
-
-func GuaranteeInPreprocess() {
-	Assert(rp == PPreprocess, "not in preprocess stage")
-}
-
-func GuaranteeInInstrument() {
-	Assert(rp == PInstrument, "not in instrument stage")
-}
-
-func Assert(cond bool, format string, args ...interface{}) {
-	if !cond {
-		panic(fmt.Sprintf(format, args...))
-	}
-}
-
-func Unimplemented() {
-	panic("unimplemented")
-}
-
-func UnimplementedT(msg string) {
-	panic("unimplemented: " + msg)
-}
-
-func ShouldNotReachHere() {
-	panic("should not reach here")
-}
-
-func ShouldNotReachHereT(msg string) {
-	panic("should not reach here: " + msg)
 }
 
 func RunCmd(args ...string) error {
